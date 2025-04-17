@@ -1,0 +1,1166 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+		http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-2.0.xsd">
+
+    <changeSet id="1" author="evgeniy.solodimov@domrf.ru" context="v2_0">
+        <createSequence sequenceName="client_categories_id_seq"/>
+    </changeSet>
+
+    <changeSet id="2" author="evgeniy.solodimov@domrf.ru" context="v2_0">
+        <createTable tableName="client_categories">
+            <column name="id"
+                    type="BIGINT"
+                    valueComputed="nextval('client_categories_id_seq')"
+                    autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="code" type="VARCHAR(255)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="abs_category" type="VARCHAR(255)">
+                <constraints nullable="true" unique="true"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="3" author="evgeniy.solodimov@domrf.ru" context="v2_0">
+        <createSequence sequenceName="dossier_types_id_seq"/>
+    </changeSet>
+
+    <changeSet id="4" author="evgeniy.solodimov@domrf.ru" context="v2_0">
+        <createTable tableName="dossier_types">
+            <column name="id"
+                    type="BIGINT"
+                    valueComputed="nextval('dossier_types_id_seq')"
+                    autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="code" type="VARCHAR(255)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="5" author="evgeniy.solodimov@domrf.ru" context="v2_0">
+        <createSequence sequenceName="product_types_id_seq"/>
+    </changeSet>
+
+    <changeSet id="6" author="evgeniy.solodimov@domrf.ru" context="v2_0">
+        <createTable tableName="product_types">
+            <column name="id"
+                    type="BIGINT"
+                    valueComputed="nextval('product_types_id_seq')"
+                    autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="type" type="VARCHAR(255)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="7" author="rishat.asadullin@domrf.ru" context="v2_0">
+        <createSequence sequenceName="document_set_id_seq"/>
+    </changeSet>
+
+    <changeSet id="8" author="rishat.asadullin@domrf.ru" context="v2_0">
+        <createTable tableName="document_sets">
+            <column name="id"
+                    type="BIGINT"
+                    valueComputed="nextval('document_set_id_seq')"
+                    autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="client_category_id" type="BIGINT">
+                <constraints nullable="true"
+                             foreignKeyName="client_category_id_fkey"
+                             references="client_categories(id)"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="9" author="evgeniy.solodimov@domrf.ru" context="v2_0">
+        <createSequence sequenceName="products_id_seq"/>
+    </changeSet>
+
+    <changeSet id="10" author="evgeniy.solodimov@domrf.ru" context="v2_0">
+        <createTable tableName="products">
+            <column name="id"
+                    type="BIGINT"
+                    valueComputed="nextval('products_id_seq')"
+                    autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="product_type_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="product_type_id_fkey"
+                             references="product_types(id)"/>
+            </column>
+            <column name="group" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="client_category_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="client_category_id_fkey"
+                             references="client_categories(id)"/>
+            </column>
+            <column name="document_set_id" type="BIGINT">
+                <constraints nullable="true"
+                             foreignKeyName="document_set_id_fkey"
+                             references="document_sets(id)"/>
+            </column>
+            <column name="abs_product_code" type="VARCHAR(255)">
+                <constraints nullable="true" unique="true"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="11" author="evgeniy.solodimov@domrf.ru" context="v2_0">
+        <addUniqueConstraint tableName="products" columnNames="product_type_id,group,name,client_category_id"/>
+    </changeSet>
+
+    <changeSet id="12" author="evgeniy.solodimov@domrf.ru" context="v2_0">
+        <createSequence sequenceName="document_group_id_seq"/>
+    </changeSet>
+
+    <changeSet id="13" author="evgeniy.solodimov@domrf.ru" context="v2_0">
+        <createTable tableName="document_group">
+            <column name="id"
+                    type="BIGINT"
+                    valueComputed="nextval('document_group_id_seq')"
+                    autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="14" author="evgeniy.solodimov@domrf.ru" context="v2_0">
+        <createSequence sequenceName="document_types_id_seq"/>
+    </changeSet>
+
+    <changeSet id="15" author="evgeniy.solodimov@domrf.ru" context="v2_0">
+        <createTable tableName="document_types">
+            <column name="id"
+                    type="BIGINT"
+                    valueComputed="nextval('document_types_id_seq')"
+                    autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="storage_period" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="abs_document_category_id" type="VARCHAR(255)">
+                <constraints nullable="true" unique="true"/>
+            </column>
+            <column name="document_group_id" type="BIGINT">
+                <constraints nullable="true"
+                             foreignKeyName="docgroup_id_fkey"
+                             references="document_group(id)"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="16" author="evgeniy.solodimov@domrf.ru" context="v2_0">
+        <createSequence sequenceName="client_products_id_seq"/>
+    </changeSet>
+
+    <changeSet id="17" author="evgeniy.solodimov@domrf.ru" context="v2_0">
+        <createTable tableName="client_products">
+            <column name="id"
+                    type="BIGINT"
+                    valueComputed="nextval('client_products_id_seq')"
+                    autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="product_name_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="product_name_id_fkey"
+                             references="products(id)"/>
+            </column>
+            <column name="deal_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="contract_id" type="BIGINT">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="contract_type" type="VARCHAR(255)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="contract_status" type="VARCHAR(255)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="product_open" type="TIMESTAMP">
+                <constraints nullable="true"/>
+            </column>
+            <column name="product_plan_end" type="TIMESTAMP">
+                <constraints nullable="true"/>
+            </column>
+            <column name="product_end" type="TIMESTAMP">
+                <constraints nullable="true"/>
+            </column>
+            <column name="product_creation_channel" type="VARCHAR(255)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="product_activation_channel" type="VARCHAR(255)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="subsystem" type="BIGINT">
+                <constraints nullable="true"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="21" author="evgeniy.solodimov@domrf.ru" context="v2_0">
+        <createSequence sequenceName="audit_id_seq"/>
+    </changeSet>
+
+    <changeSet id="22" author="evgeniy.solodimov@domrf.ru" context="v2_0">
+        <createTable tableName="audit">
+            <column name="id"
+                    type="BIGINT"
+                    valueComputed="nextval('audit_id_seq')"
+                    autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <!--            FIXME: Избыточное количество информации и дубликаты, пересмотреть столбцы-->
+            <column name="event_type" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="event_code" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="requestor" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="remote_address" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="request_time" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="object_type" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="object_id" type="TEXT">
+                <!--                FIXME: запретить null-->
+                <!--                <constraints nullable="false"/>-->
+            </column>
+            <column name="message" type="TEXT"/>
+            <column name="success" type="BOOLEAN"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="23" author="evgeniy.solodimov@domrf.ru" context="v2_0">
+        <createSequence sequenceName="clients_id_seq"/>
+    </changeSet>
+
+    <changeSet id="24" author="evgeniy.solodimov@domrf.ru" context="v2_0">
+        <createTable tableName="clients">
+            <column name="id"
+                    type="BIGINT"
+                    valueComputed="nextval('clients_id_seq')"
+                    autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="category_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="category_id_fkey"
+                             references="client_categories(id)"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="abs_client_id" type="BIGINT">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="abs_status" type="VARCHAR(255)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="abs_created_at" type="TIMESTAMP">
+                <constraints nullable="true"/>
+            </column>
+            <column name="vip_status" type="BOOLEAN">
+                <constraints nullable="true"/>
+            </column>
+            <column name="dbo_status" type="BOOLEAN">
+                <constraints nullable="true"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="25" author="evgeniy.solodimov@domrf.ru" context="v2_0">
+        <createSequence sequenceName="client_history_id_seq"/>
+    </changeSet>
+
+    <changeSet id="26" author="evgeniy.solodimov@domrf.ru" context="v2_0">
+        <createTable tableName="client_history">
+            <column name="id"
+                    type="BIGINT"
+                    valueComputed="nextval('client_history_id_seq')"
+                    autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="client_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="client_id_fkey"
+                             references="clients(id)"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="object_type" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="field" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="old_value" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="new_value" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="author" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="27" author="rishat.asadullin@domrf.ru" context="v2_0">
+        <createSequence sequenceName="offices_id_seq"/>
+    </changeSet>
+
+    <changeSet id="28" author="rishat.asadullin@domrf.ru" context="v2_0">
+        <createTable tableName="offices" remarks="Таблица офисов">
+            <column name="id"
+                    type="BIGINT"
+                    valueComputed="nextval('offices_id_seq')"
+                    autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="office" type="BIGINT" remarks="Код отделения">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="label" type="VARCHAR(255)" remarks="Наименование отделения">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="abs_office_code" type="VARCHAR(255)">
+                <constraints nullable="true" unique="true"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="29" author="evgeniy.solodimov@domrf.ru" context="v2_0">
+        <createSequence sequenceName="dossiers_id_seq"/>
+    </changeSet>
+
+    <changeSet id="30" author="evgeniy.solodimov@domrf.ru" context="v2_0">
+        <createTable tableName="dossiers">
+            <column name="id"
+                    type="BIGINT"
+                    valueComputed="nextval('dossiers_id_seq')"
+                    autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="client_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="client_id_fkey"
+                             references="clients(id)"/>
+            </column>
+            <column name="dossiertype_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="dossiertype_id_fkey"
+                             references="dossier_types(id)"/>
+            </column>
+            <column name="product_id" type="BIGINT">
+                <constraints nullable="true"
+                             foreignKeyName="product_id_fkey"
+                             references="client_products(id)"/>
+            </column>
+            <column name="office_id" type="BIGINT">
+                <constraints nullable="true"
+                             foreignKeyName="office_id_fkey"
+                             references="offices(id)"/>
+            </column>
+        </createTable>
+        <sql>
+            CREATE UNIQUE INDEX idx_unique_client_id_when_dossiertype_id_is_1
+            ON dossiers (client_id) WHERE dossiertype_id = 1;
+        </sql>
+    </changeSet>
+
+    <changeSet id="31" author="evgeniy.solodimov@domrf.ru" context="v2_0">
+        <createSequence sequenceName="documents_id_seq"/>
+    </changeSet>
+
+    <changeSet id="32" author="evgeniy.solodimov@domrf.ru" context="v2_0">
+        <createTable tableName="documents">
+            <column name="id"
+                    type="BIGINT"
+                    valueComputed="nextval('documents_id_seq')"
+                    autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="dossier_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="dossier_id_fkey"
+                             references="dossiers(id)"/>
+            </column>
+            <column name="doctype_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="doctype_id_fkey"
+                             references="document_types(id)"/>
+            </column>
+            <column name="document_id" type="UUID">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="author" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_deleted" type="BOOLEAN">
+                <constraints nullable="false"/>
+            </column>
+            <column name="office_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="office_id_fkey"
+                             references="offices(id)"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="expiration_date" type="TIMESTAMP">
+                <constraints nullable="true"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="33" author="evgeniy.solodimov@domrf.ru" context="v2_0">
+        <createSequence sequenceName="document_versions_id_seq"/>
+    </changeSet>
+
+    <changeSet id="34" author="evgeniy.solodimov@domrf.ru" context="v2_0">
+        <createTable tableName="document_versions">
+            <column name="id"
+                    type="BIGINT"
+                    valueComputed="nextval('document_versions_id_seq')"
+                    autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="document_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="document_id_fkey"
+                             references="documents(id)"/>
+            </column>
+            <column name="content_id" type="UUID">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="author" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="content_size" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="filename" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="file_extension" type="VARCHAR(255)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="abs_file_id" type="BIGINT">
+                <constraints nullable="true" unique="true"/>
+            </column>
+            <column name="source_system" type="VARCHAR(255)">
+                <constraints nullable="true"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="35" author="evgeniy.solodimov@domrf.ru" context="v2_0">
+        <createSequence sequenceName="signature_id_seq"/>
+    </changeSet>
+
+    <changeSet id="36" author="evgeniy.solodimov@domrf.ru" context="v2_0">
+        <createTable tableName="signature">
+            <column name="id"
+                    type="BIGINT"
+                    valueComputed="nextval('signature_id_seq')"
+                    autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="document_version_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="document_version_id_fkey"
+                             references="document_versions(id)"/>
+            </column>
+            <column name="signatory_company" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="signatory_person" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="signatory_role" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="certificate_number" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="certificate_start_date" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="certificate_end_date" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sign_date" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="certificate_issued" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="signature_verif" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="signature_file_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="37" author="evgeniy.solodimov@domrf.ru" context="v2_0">
+        <createSequence sequenceName="document_properties_id_seq"/>
+    </changeSet>
+
+    <changeSet id="38" author="evgeniy.solodimov@domrf.ru" context="v2_0">
+        <createTable tableName="document_properties">
+            <column name="id"
+                    type="BIGINT"
+                    valueComputed="nextval('document_properties_id_seq')"
+                    autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="document_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="document_properties_document_id_fkey"
+                             references="documents(id)"/>
+            </column>
+            <column name="posit_classif" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="posit_group" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="send_date" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="report_date" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="plan_date" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="document_owner" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="posit_union" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="posit_contr" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="posit_status" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="39" author="evgeniy.solodimov@domrf.ru" context="v2_0">
+        <addUniqueConstraint tableName="document_properties" columnNames="document_id,posit_classif,posit_group,report_date,document_owner"/>
+    </changeSet>
+
+    <changeSet id="40" author="evgeniy.solodimov@domrf.ru" context="v2_0">
+        <sql>
+            ALTER TABLE document_properties ADD CHECK (posit_status IN ('downloaded', 'beingProcessed', 'accepted', 'notAccepted'))
+        </sql>
+    </changeSet>
+
+    <changeSet id="41" author="evgeniy.solodimov@domrf.ru" context="v2_0">
+        <createSequence sequenceName="document_reuse_id_seq"/>
+    </changeSet>
+
+    <changeSet id="42" author="evgeniy.solodimov@domrf.ru" context="v2_0">
+        <createTable tableName="document_reuse">
+            <column name="id"
+                    type="BIGINT"
+                    valueComputed="nextval('document_reuse_id_seq')"
+                    autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="target_dossier_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="target_dossier_id_fkey"
+                             references="dossiers(id)"/>
+            </column>
+            <column name="document_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="document_id_fkey"
+                             references="documents(id)"/>
+            </column>
+            <column name="author" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="57" author="rishat.asadullin@domrf.ru" context="v2_0">
+        <createSequence sequenceName="access_roles_id_seq"/>
+    </changeSet>
+
+    <changeSet id="58" author="rishat.asadullin@domrf.ru" context="v2_0">
+        <createTable tableName="access_roles">
+            <column name="id"
+                    type="BIGINT"
+                    valueComputed="nextval('access_roles_id_seq')"
+                    autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="role" type="VARCHAR(255)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="description" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="59" author="rishat.asadullin@domrf.ru" context="v2_0">
+        <createSequence sequenceName="permissions_id_seq"/>
+    </changeSet>
+
+    <changeSet id="60" author="rishat.asadullin@domrf.ru" context="v2_0">
+        <createTable tableName="permissions">
+            <column name="id"
+                    type="BIGINT"
+                    valueComputed="nextval('permissions_id_seq')"
+                    autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="code" type="VARCHAR(255)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="description" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="61" author="rishat.asadullin@domrf.ru" context="v2_0">
+        <createSequence sequenceName="access_role_permissions_id_seq"/>
+    </changeSet>
+
+    <changeSet id="62" author="rishat.asadullin@domrf.ru" context="v2_0">
+        <createTable tableName="access_role_permissions">
+            <column name="id"
+                    type="BIGINT"
+                    valueComputed="nextval('access_role_permissions_id_seq')"
+                    autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="access_role_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="access_role_id_fkey"
+                             references="access_roles(id)"/>
+            </column>
+            <column name="permission_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="permission_id_fkey"
+                             references="permissions(id)"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="63" author="dmitriy.i.tarasov@domrf.ru" context="v2_0">
+        <createSequence sequenceName="client_accounts_id_seq"/>
+    </changeSet>
+
+    <changeSet id="64" author="dmitriy.i.tarasov@domrf.ru" context="v2_0">
+        <createTable tableName="client_accounts">
+            <column name="id"
+                    type="BIGINT"
+                    valueComputed="nextval('client_accounts_id_seq')"
+                    autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="product_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="client_accounts_product_id_fkey"
+                             references="client_products(id)"/>
+            </column>
+            <column name="account_code" type="VARCHAR(255)">
+                <constraints nullable="false" unique="true" />
+            </column>
+            <column name="main_account_id" type="VARCHAR(255)">
+                <constraints nullable="false" />
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="65" author="rishat.asadullin@domrf.ru" context="v2_0">
+        <createSequence sequenceName="report_types_id_seq"/>
+    </changeSet>
+
+    <changeSet id="66" author="rishat.asadullin@domrf.ru" context="v2_0">
+        <createTable tableName="report_types">
+            <column name="id"
+                    type="BIGINT"
+                    valueComputed="nextval('report_types_id_seq')"
+                    autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false" />
+            </column>
+            <column name="description" type="VARCHAR(255)">
+                <constraints nullable="false" />
+            </column>
+            <column name="dossier_type_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="dossier_type_id_fkey"
+                             references="dossier_types(id)"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="67" author="rishat.asadullin@domrf.ru" context="v2_0">
+        <createSequence sequenceName="reports_id_seq"/>
+    </changeSet>
+
+    <changeSet id="68" author="rishat.asadullin@domrf.ru" context="v2_0">
+        <createTable tableName="reports">
+            <column name="id"
+                    type="BIGINT"
+                    valueComputed="nextval('reports_id_seq')"
+                    autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="report_type_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="report_types_id_fkey"
+                             references="report_types(id)"/>
+            </column>
+            <column name="client_category_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="client_category_id_fkey"
+                             references="client_categories(id)"/>
+            </column>
+            <column name="office_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="office_id_fkey"
+                             references="offices(id)"/>
+            </column>
+            <column name="product_type_id" type="BIGINT">
+                <constraints nullable="true"
+                             foreignKeyName="product_type_id_fkey"
+                             references="product_types(id)"/>
+            </column>
+            <column name="report_id" type="UUID">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="generation_status" type="VARCHAR(255)">
+                <constraints nullable="false" />
+            </column>
+            <column name="author" type="VARCHAR(255)">
+                <constraints nullable="false" />
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="client_status" type="VARCHAR(255)">
+                <constraints nullable="true" />
+            </column>
+            <column name="client_created_min" type="DATE">
+                <constraints nullable="true"/>
+            </column>
+            <column name="client_created_max" type="DATE">
+                <constraints nullable="true"/>
+            </column>
+            <column name="product_created_min" type="DATE">
+                <constraints nullable="true"/>
+            </column>
+            <column name="product_created_max" type="DATE">
+                <constraints nullable="true"/>
+            </column>
+            <column name="dossiers_total" type="BIGINT">
+                <constraints nullable="true"/>
+            </column>
+            <column name="dossiers_complete" type="BIGINT">
+                <constraints nullable="true"/>
+            </column>
+            <column name="error_message" type="TEXT">
+                <constraints nullable="true"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="69" author="rishat.asadullin@domrf.ru" context="v2_0">
+        <createSequence sequenceName="report_complete_dossiers_id_seq"/>
+    </changeSet>
+
+    <changeSet id="70" author="rishat.asadullin@domrf.ru" context="v2_0">
+        <createTable tableName="report_complete_dossiers">
+            <column name="id"
+                    type="BIGINT"
+                    valueComputed="nextval('report_complete_dossiers_id_seq')"
+                    autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="report_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="report_id_fkey"
+                             references="reports(id)"/>
+            </column>
+            <column name="client_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="client_id_fkey"
+                             references="clients(id)"/>
+            </column>
+            <column name="dossier_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="dossier_id_fkey"
+                             references="dossiers(id)"/>
+            </column>
+            <column name="client_status" type="VARCHAR(255)">
+                <constraints nullable="true" />
+            </column>
+            <column name="complete_status" type="VARCHAR(255)">
+                <constraints nullable="false" />
+            </column>
+            <column name="documents_total" type="BIGINT">
+                <constraints nullable="false" />
+            </column>
+            <column name="documents_available" type="BIGINT">
+                <constraints nullable="false" />
+            </column>
+            <column name="contract_status" type="VARCHAR(255)">
+                <constraints nullable="true" />
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="71" author="rishat.asadullin@domrf.ru" context="v2_0">
+        <createSequence sequenceName="complete_documents_detail_id_seq"/>
+    </changeSet>
+
+    <changeSet id="72" author="rishat.asadullin@domrf.ru" context="v2_0">
+        <createTable tableName="complete_documents_detail">
+            <column name="id"
+                    type="BIGINT"
+                    valueComputed="nextval('complete_documents_detail_id_seq')"
+                    autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="report_complete_dossier_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="report_complete_dossier_id_fkey"
+                             references="report_complete_dossiers(id)"/>
+            </column>
+            <column name="document_id" type="BIGINT">
+                <constraints nullable="true"
+                             foreignKeyName="document_id_fkey"
+                             references="documents(id)"/>
+            </column>
+            <column name="document_type_name" type="VARCHAR(255)">
+                <constraints nullable="false" />
+            </column>
+            <column name="document_available" type="BOOLEAN">
+                <constraints nullable="false"/>
+            </column>
+            <column name="document_required" type="BOOLEAN">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="73" author="rishat.asadullin@domrf.ru" context="v2_0">
+        <createSequence sequenceName="report_complete_dossier_person_id_seq"/>
+    </changeSet>
+
+    <changeSet id="74" author="rishat.asadullin@domrf.ru" context="v2_0">
+        <createTable tableName="report_complete_dossier_persons">
+            <column name="id"
+                    type="BIGINT"
+                    valueComputed="nextval('report_complete_dossier_person_id_seq')"
+                    autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="report_complete_dossier_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="report_complete_dossier_id_fkey"
+                             references="report_complete_dossiers(id)"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="true" />
+            </column>
+            <column name="surname" type="VARCHAR(255)">
+                <constraints nullable="true" />
+            </column>
+            <column name="second_name" type="VARCHAR(255)">
+                <constraints nullable="true" />
+            </column>
+            <column name="birthdate" type="DATE">
+                <constraints nullable="true" />
+            </column>
+            <column name="document_series" type="VARCHAR(255)">
+                <constraints nullable="true" />
+            </column>
+            <column name="document_number" type="VARCHAR(255)">
+                <constraints nullable="true" />
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="75" author="rishat.asadullin@domrf.ru" context="v2_0">
+        <createSequence sequenceName="report_complete_dossier_individual_id_seq"/>
+    </changeSet>
+
+    <changeSet id="76" author="rishat.asadullin@domrf.ru" context="v2_0">
+        <createTable tableName="report_complete_dossier_individuals">
+            <column name="id"
+                    type="BIGINT"
+                    valueComputed="nextval('report_complete_dossier_individual_id_seq')"
+                    autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="report_complete_dossier_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="report_complete_dossier_id_fkey"
+                             references="report_complete_dossiers(id)"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="true" />
+            </column>
+            <column name="surname" type="VARCHAR(255)">
+                <constraints nullable="true" />
+            </column>
+            <column name="second_name" type="VARCHAR(255)">
+                <constraints nullable="true" />
+            </column>
+            <column name="birthdate" type="DATE">
+                <constraints nullable="true" />
+            </column>
+            <column name="document_series" type="VARCHAR(255)">
+                <constraints nullable="true" />
+            </column>
+            <column name="document_number" type="VARCHAR(255)">
+                <constraints nullable="true" />
+            </column>
+            <column name="inn" type="VARCHAR(255)">
+                <constraints nullable="true" />
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="77" author="rishat.asadullin@domrf.ru" context="v2_0">
+        <createSequence sequenceName="report_complete_dossier_company_id_seq"/>
+    </changeSet>
+
+    <changeSet id="78" author="rishat.asadullin@domrf.ru" context="v2_0">
+        <createTable tableName="report_complete_dossier_companies">
+            <column name="id"
+                    type="BIGINT"
+                    valueComputed="nextval('report_complete_dossier_company_id_seq')"
+                    autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="report_complete_dossier_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="report_complete_dossier_id_fkey"
+                             references="report_complete_dossiers(id)"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="true" />
+            </column>
+            <column name="inn" type="VARCHAR(255)">
+                <constraints nullable="true" />
+            </column>
+            <column name="kpp" type="VARCHAR(255)">
+                <constraints nullable="true" />
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="79" author="rishat.asadullin@domrf.ru" context="v2_0">
+        <createSequence sequenceName="document_sets_item_id_seq"/>
+    </changeSet>
+
+    <changeSet id="80" author="rishat.asadullin@domrf.ru" context="v2_0">
+        <createTable tableName="document_sets_items">
+            <column name="id"
+                    type="BIGINT"
+                    valueComputed="nextval('document_sets_item_id_seq')"
+                    autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="document_set_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="document_set_id_fkey"
+                             references="document_sets(id)"/>
+            </column>
+            <column name="document_type_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="document_type_id_fkey"
+                             references="document_types(id)"/>
+            </column>
+            <column name="required" type="BOOLEAN">
+                <constraints nullable="false" />
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="81" author="rishat.asadullin@domrf.ru" context="v2_0">
+        <createSequence sequenceName="audit_backup_id_seq"/>
+    </changeSet>
+
+    <changeSet id="82" author="rishat.asadullin@domrf.ru" context="v2_0">
+        <createTable tableName="audit_backups">
+            <column name="id"
+                    type="BIGINT"
+                    valueComputed="nextval('audit_backup_id_seq')"
+                    autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false" />
+            </column>
+            <column name="type" type="VARCHAR(255)">
+                <constraints nullable="false" />
+            </column>
+            <column name="docstore_id" type="UUID">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="date_from" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="date_to" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="83" author="dmitriy.i.tarasov@domrf.ru" context="v2_0">
+        <addColumn tableName="document_types">
+            <column name="efo_document_code" type="VARCHAR(255)">
+                <constraints nullable="true" unique="true"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="84" author="dy.kharin@domrf.ru" context="v2_0">
+        <addColumn tableName="document_versions">
+            <column name="begin_date" type="TIMESTAMP">
+                <constraints nullable="true"/>
+            </column>
+            <column name="end_date" type="TIMESTAMP">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="85" author="rishat.asadullin@domrf.ru" context="v2_0">
+        <createSequence sequenceName="migration_error_id_seq"/>
+    </changeSet>
+
+    <changeSet id="86" author="rishat.asadullin@domrf.ru" context="v2_0">
+        <createTable tableName="migration_errors">
+            <column name="id"
+                    type="BIGINT"
+                    valueComputed="nextval('migration_error_id_seq')"
+                    autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="request_id" type="VARCHAR(255)">
+                <constraints nullable="false" />
+            </column>
+            <column name="abs_client_id" type="BIGINT">
+                <constraints nullable="true" />
+            </column>
+            <column name="contract_code" type="VARCHAR(255)">
+                <constraints nullable="true" />
+            </column>
+            <column name="file_id" type="BIGINT">
+                <constraints nullable="true" />
+            </column>
+            <column name="event_code" type="VARCHAR(255)">
+                <constraints nullable="false" />
+            </column>
+            <column name="operation_name" type="VARCHAR(255)">
+                <constraints nullable="false" />
+            </column>
+            <column name="error_message" type="TEXT">
+                <constraints nullable="false" />
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="87" author="rishat.asadullin@domrf.ru" context="v2_0">
+        <addColumn tableName="migration_errors">
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="88" author="rishat.asadullin@domrf.ru" context="v2_0">
+        <addColumn tableName="client_products">
+            <column name="client_id" type="BIGINT">
+                <constraints nullable="true" foreignKeyName="client_id_fkey" references="clients(id)"/>
+            </column>
+        </addColumn>
+        <dropUniqueConstraint tableName="client_products" constraintName="client_products_contract_id_key"/>
+        <addUniqueConstraint tableName="client_products" columnNames="contract_id, client_id"/>
+    </changeSet>
+    <changeSet id="89" author="dy.kharin@domrf.ru" context="v2_0">
+        <addColumn tableName="migration_errors">
+            <column name="is_fixed" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+</databaseChangeLog>
