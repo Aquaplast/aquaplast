@@ -1,0 +1,151 @@
+// Repository: QueryDSL operations extracted
+package com.example.repository;
+
+import com.example.entity.Document;
+import com.example.entity.DocumentVersion;
+import com.example.entity.DocumentType;
+import com.querydsl.jpa.impl.JPAQueryFactory;
+import com.querydsl.jpa.JPAExpressions;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+import static com.example.entity.QDocument.document;
+import static com.example.entity.QDocumentVersion.documentVersion;
+
+@Repository
+@RequiredArgsConstructor
+public class DossierQueryDslRepository {
+    private final JPAQueryFactory queryFactory;
+
+    /**
+     * Fetches the latest DocumentVersion for each Document in the given dossier.
+     */
+    public List<DocumentVersion> fetchLatestDocumentVersions(Long dossierId) {
+        return queryFactory
+            .select(documentVersion)
+            .from(documentVersion)
+            .join(documentVersion.document, document).fetchJoin()
+            .where(document.dossier.id.eq(dossierId),
+                   documentVersion.createdAt.eq(
+                       JPAExpressions.select(documentVersion.createdAt.max())
+                           .from(documentVersion)
+                           .where(documentVersion.document.eq(document))
+                   )
+            )
+            .fetch();
+    }
+
+    /**
+     * Fetches all Document entities of the specified types for the given dossier.
+     */
+    public Map<DocumentType, Document> fetchDocumentsByTypes(Long dossierId, List<DocumentType> types) {
+        return queryFactory
+            .select(document)
+            .from(document)
+            .where(document.dossier.id.eq(dossierId), document.documentType.in(types))
+            .fetch()
+            .stream()
+            .collect(Collectors.toMap(Document::getDocumentType, Function.identity()));
+    }
+}
+
+
+// Service: uses extracted repository
+package com.example.service;
+
+import com.example.dto.DocumentDto;
+import com.example.dto.DossierWithDocumentsDto;
+import com.example.dto.CompleteDocumentDto;
+import com.example.entity.Document;
+import com.example.entity.DocumentType;
+import com.example.entity.DocumentSetItem;
+import com.example.entity.DocumentSet;
+import com.example.entity.DocumentVersion;
+import com.example.entity.Dossier;
+import com.example.repository.DossierQueryDslRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.Map;
+import java.util.ArrayList;
+import java.util.NoSuchElementException;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+public class DossierWithDocumentsService {
+    private final DossierRepository dossierRepository;
+    private final DossierQueryDslRepository dossierQueryDslRepository;
+    private final DocumentSetItemRepository documentSetItemRepository;
+    private final DocumentReuseService documentReuseService;
+    private final UserService userService;
+
+    public DossierWithDocumentsDto getDossierWithDocuments(Long id) {
+        // 1) Load dossier entity with required associations
+        Dossier dossier = dossierRepository.findFullById(id)
+            .orElseThrow(() -> new NoSuchElementException("Dossier not found: " + id));
+        userService.checkPermission(dossier.getClient());
+
+        // 2) Load latest versions
+        List<DocumentVersion> versions = dossierQueryDslRepository.fetchLatestDocumentVersions(id);
+        List<DocumentDto> documentDtos = versions.stream()
+            .map(v -> {
+                DocumentDto dto = DocumentDto.create(v, false);
+                if ("INTEGRATION".equals(dto.getAuthor())) dto.setAuthor("Integration");
+                return dto;
+            }).collect(Collectors.toList());
+
+        // 3) Load complete documents by types in batch
+        int docsAvailable = 0;
+        List<CompleteDocumentDto> completeList = new ArrayList<>();
+        if (!isOtherDossier(dossier)) {
+            DocumentSet set = isProductDossier(dossier)
+                ? dossier.getClientProduct().getProduct().getDocumentSet()
+                : documentSetRepository.findByClientCategory(dossier.getClient().getClientCategory());
+            List<DocumentSetItem> items = documentSetItemRepository.findByDocumentSetAndRequired(set, true);
+            List<DocumentType> types = items.stream().map(DocumentSetItem::getDocumentType).collect(Collectors.toList());
+
+            Map<DocumentType, Document> docs = dossierQueryDslRepository.fetchDocumentsByTypes(id, types);
+            Map<DocumentType, Document> reused = documentReuseService.getAllForDossier(dossier)
+                .stream()
+                .collect(Collectors.toMap(dr -> dr.getDocument().getDocumentType(), dr -> dr.getDocument()));
+
+            for (DocumentSetItem item : items) {
+                DocumentType type = item.getDocumentType();
+                Document docEntity = docs.getOrDefault(type, reused.get(type));
+                CompleteDocumentDto cd = CompleteDocumentDto.create(item, docEntity);
+                if (cd.isDocumentAvailable()) docsAvailable++;
+                completeList.add(cd);
+            }
+        }
+
+        // 4) Build and return DTO
+        return DossierWithDocumentsDto.builder()
+            .dossierId(dossier.getId())
+            .dossierTypeId(dossier.getDossierType().getId())
+            .dossierTypeName(dossier.getDossierType().getName())
+            .officeId(dossier.getOffice().getId())
+            .officeName(String.format("(%s) %s", dossier.getOffice().getAbsOfficeCode(), dossier.getOffice().getLabel()))
+            .productDto(ProductDto.create(dossier))
+            .documents(documentDtos)
+            .completeDocuments(completeList)
+            .completeStatus(DossierWithDocumentsDto.getCompleteStatus(docsAvailable, completeList.size(), dossier.getDossierType()))
+            .build();
+    }
+
+    private boolean isOtherDossier(Dossier d) {
+        // existing logic
+        return false;
+    }
+
+    private boolean isProductDossier(Dossier d) {
+        return d.getClientProduct() != null;
+    }
+}
