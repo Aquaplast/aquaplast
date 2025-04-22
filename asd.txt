@@ -1,5 +1,21 @@
+@EnableAsync  // Включает поддержку @Async
+public class AsyncConfig {
+
+    @Bean("schedulerExecutor")  // Имя бина должно совпадать с @Async("schedulerExecutor")
+    public Executor schedulerExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(4);     // Минимальное количество потоков
+        executor.setMaxPoolSize(10);     // Максимальное при нагрузке
+        executor.setQueueCapacity(100);  // Размер очереди задач
+        executor.setThreadNamePrefix("Scheduler-Async-");
+        executor.initialize();
+        return executor;
+    }
+
+
 @Override
-    @Scheduled(initialDelay = 1000L, fixedDelayString = "${rr.schedule-delay}")
+    @Async("schedulerExecutor")  // Запуск в отдельном потоке
+    @Scheduled(initialDelay = 1000L, fixedRateString = "${rr.schedule-delay:5000}")  // fixedRate вместо fixedDelay
     public void start() {
         if (enabled) {
             log.debug("igrr.StarterProcess start call RequestProcessStarterWC");
@@ -7,143 +23,4 @@
         }
     }
 
-package ru.thprom.igrr.process.worker.impl;
 
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.Date;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.stream.Collectors;
-
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-import ru.thprom.igrr.actors.decider.BatchRequestProcess;
-import ru.thprom.igrr.actors.decider.ExtendedBatchRequestProcess;
-import ru.thprom.igrr.actors.decider.OnlineBatchProcess;
-import ru.thprom.igrr.actors.decider.RrRequestProcess;
-import ru.thprom.igrr.actors.decider.RrResumeProcess;
-import ru.thprom.igrr.actors.decider.RrSimpleSenderProcess;
-import ru.thprom.igrr.actors.worker.RequestProcessStarter;
-import ru.thprom.igrr.api.domain.ChangeStatusResult;
-import ru.thprom.igrr.api.domain.RequestType;
-import ru.thprom.igrr.api.service.PackageService;
-import ru.thprom.igrr.api.service.RequestService;
-import ru.thprom.igrr.event.api.EventPublisher;
-import ru.thprom.igrr.event.api.EventUtils;
-import ru.thprom.igrr.license.decode.LicenseDecoder;
-import ru.thprom.igrr.util.RequestTypeUtil;
-
-@Slf4j
-@Component
-public class RequestProcessStarterImpl implements RequestProcessStarter {
-    public static final String ERROR_UNSUPPORTED_TYPE = "Тип запроса [{}] не поддерживается"; //IGRR-976 сообщение на русском
-
-	@Autowired
-    private RequestService requestService;
-
-    @Autowired
-    private PackageService packageService;
-
-    @Autowired
-    private RrSimpleSenderProcess rrSimpleSenderProcessDC;
-
-    @Autowired
-    private RrResumeProcess rrResumeProcessDC;
-
-    @Autowired
-    private RrRequestProcess rrRequestProcessDC;
-
-    @Autowired
-    private OnlineBatchProcess onlineBatchProcessDC;
-
-    @Autowired
-    private BatchRequestProcess batchRequestProcessDC;
-
-    @Autowired
-    private ExtendedBatchRequestProcess extendedBatchRequestProcessDC;
-
-    @Autowired
-    private EventPublisher eventPublisher;
-
-    private final int packSize;
-
-    private final Date expiredDate;
-
-    public RequestProcessStarterImpl(@Value("${requests.pack-size}") int packSize, @Value("${license.location}") String licenseLocation) {
-        this.packSize = packSize;
-        Date expiredDate;
-        try {
-            String license = new String(Files.readAllBytes(Paths.get(licenseLocation)));
-            expiredDate = LicenseDecoder.getExpired(license);
-        } catch (Exception e) {
-            expiredDate = new Date();
-        }
-        this.expiredDate = expiredDate;
-    }
-
-    @Override
-    public void start() {
-        if (new Date().after(expiredDate)) {
-            return;
-        }
-        List<Long> reqPack;
-        do {
-            log.info("Check for new requests pack [{}]", packSize);
-            reqPack = requestService.getNewRequestsPack(packSize);
-            log.info("Start to process request pack {}", reqPack);
-            startProcessesPack(reqPack);
-        } while (reqPack != null && !reqPack.isEmpty());
-
-        int cleaned = requestService.cleanupQueue();
-        if (cleaned > 0) {
-            log.debug("Queue cleanup result [{}]", cleaned);
-        }
-    }
-
-    private void startProcessesPack(List<Long> reqPack) {
-        if (reqPack != null && !reqPack.isEmpty()) {
-            ExecutorService executor = Executors.newFixedThreadPool(8);
-            List<CompletableFuture<Void>> futures = reqPack.stream()
-                    .map(reqId -> CompletableFuture.runAsync(() -> process(reqId), executor))
-                    .collect(Collectors.toList());
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-            executor.shutdown();
-        }
-    }
-
-    private void process(Long reqId) {
-        try {
-            RequestType type = requestService.getRequestType(reqId);
-            log.info("Try to start process for requestId[{}], type[{}]", reqId, type);
-            if (RequestTypeUtil.isSmev2EgrnProcess(type) || RequestTypeUtil.isRrProcess(type) || RequestTypeUtil.isIrProcess(type) || RequestTypeUtil.isEgrnProcess(type) || RequestTypeUtil.isEzak(type)) {
-                if (!RequestType.REG_MORTGAGE_ELECTRONIC.equalsIgnoreCase(type.getAction()) && requestService.isExtendedBatchRequest(reqId)) {
-                    extendedBatchRequestProcessDC.process(reqId);
-                } else if (requestService.isBatchRequest(reqId)) {
-                    batchRequestProcessDC.processBatch(reqId);
-                } else if (packageService.hasReadyToSendPackage(reqId)) {
-                    rrSimpleSenderProcessDC.process(reqId);
-                } else if (RequestTypeUtil.isResumable(type) && requestService.hasReadySignatures(reqId)) {
-                    rrResumeProcessDC.resume(reqId);
-                } else {
-                    rrRequestProcessDC.process(reqId);
-                }
-            } else if (RequestTypeUtil.isOnlineRequest(type)) {
-                onlineBatchProcessDC.process(reqId);
-            } else {
-                log.error("Unsupported type[" + type + "] for requestId [" + reqId + "]");
-                ChangeStatusResult csResult = requestService.rejectRequest(reqId, ERROR_UNSUPPORTED_TYPE.replace("{}", String.valueOf(type)));
-                if (csResult.isStatusChanged()) {
-                    eventPublisher.publish(EventUtils.statusChanged(csResult.getStatusId()));
-                }
-            }
-            requestService.deleteQueueItem(reqId);
-        } catch (Throwable e) {
-            log.error("#[" + reqId + "]: cannot start process", e);
-        }
-    }
-}
