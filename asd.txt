@@ -1,0 +1,137 @@
+@Override
+    public ReportIndividualResponseDto getCompleteDossiersIndividuals(ReportIndividualRequestDto requestDto)
+        throws AccessDeniedException {
+        var report = reportService.getReport(requestDto.getReportId());
+        if (!report.getAuthor().equals(loggerRequestContext.getConsumer())) {
+            throw new AccessDeniedException("Доступ к отчету запрещён");
+        }
+        Specification<ReportCompleteDossier> spec = specificationBuilder.buildSpecification(requestDto);
+        Pageable pageable = requestDto.getPageable();
+        Page<ReportCompleteDossier> dossierPage = reportCompleteDossierRepository.findAll(spec, pageable);
+
+        return convertToReportIndividualResponseDto(report, dossierPage, requestDto);
+    }
+
+    private ReportIndividualResponseDto convertToReportIndividualResponseDto(Report report,
+                                                                             Page<ReportCompleteDossier> dossierPage,
+                                                                             ReportIndividualRequestDto requestDto) {
+
+        ReportIndividualResponseDto.ReportInfoDTO reportInfo = ReportIndividualResponseDto.ReportInfoDTO.builder()
+                .reportTypeId(report.getReportType().getId())
+                .reportId(report.getReportId())
+                .generationStatus(report.getGenerationStatus())
+                .author(report.getAuthor())
+                .createdAt(report.getCreatedAt())
+                .clientCategoryId(report.getClientCategory() != null ? report.getClientCategory().getId() : null)
+                .clientStatus(ClientStatus.getDescriptionFromCode(report.getClientStatus()))
+                .office(report.getOffice() != null ? report.getOffice().getId() : null)
+                .productTypeName(report.getProductType() != null ? report.getProductType().getType() : null)
+                .dossiersTotal(report.getDossiersTotal() != null ? report.getDossiersTotal() : 0L)
+                .dossiersComplete(report.getDossiersComplete() != null ? report.getDossiersComplete() : 0L)
+                .clientCreated(new ReportIndividualResponseDto.ReportInfoDTO.DateRangeDTO(
+                        report.getClientCreatedMin(),
+                        report.getClientCreatedMax()))
+                .productCreated(new ReportIndividualResponseDto.ReportInfoDTO.DateRangeDTO(
+                        report.getProductCreatedMin(),
+                        report.getProductCreatedMax()))
+                .build();
+
+        List<ReportIndividualResponseDto.ReportDataDTO> reportData = dossierPage.getContent().stream()
+                .map(this::convertToReportDataDTO)
+                .distinct()
+                .collect(Collectors.toList());
+
+        return ReportIndividualResponseDto.builder()
+                .reportInfo(reportInfo)
+                .reportData(reportData)
+                .pagination(new ReportIndividualResponseDto.PaginationDTO((long) dossierPage.getNumber() + 1,
+                        (long) dossierPage.getTotalPages(), dossierPage.getTotalElements(), (long) dossierPage.getSize()))
+                .sortBy(convertSortBy(requestDto.getSortBy()))
+                .filter(convertFilter(requestDto.getFilter()))
+                .build();
+    }
+
+    private ReportIndividualResponseDto.SortByDTO convertSortBy(ReportIndividualRequestDto.SortByDTO sortBy) {
+        if (sortBy == null) {
+            return null;
+        }
+        return ReportIndividualResponseDto.SortByDTO.builder()
+                .field(sortBy.getField())
+                .value(sortBy.getValue())
+                .build();
+    }
+
+    private List<ReportIndividualResponseDto.FilterDTO> convertFilter(List<ReportIndividualRequestDto.FilterDTO> filters) {
+        if (filters == null) {
+            return null;
+        }
+        return filters.stream()
+                .map(filter -> ReportIndividualResponseDto.FilterDTO.builder()
+                        .field(filter.getField())
+                        .value(filter.getValue())
+                        .build())
+                .collect(Collectors.toList());
+    }
+
+    private ReportIndividualResponseDto.ReportDataDTO convertToReportDataDTO(ReportCompleteDossier dossier) {
+
+        List<ReportDossierIndividual> individuals = reportDossierIndividualRepository.findByReportCompleteDossier(dossier);
+
+        ReportIndividualResponseDto.ReportDataDTO.ClientIndividualDTO clientPerson = individuals.stream()
+                .map(individual -> ReportIndividualResponseDto.ReportDataDTO.ClientIndividualDTO.builder()
+                        .clientId(dossier.getClient() != null ? dossier.getClient().getId() : null)
+                        .absClientId(dossier.getClient() != null ? dossier.getClient().getAbsClientId() : null)
+                        .clientStatusName(dossier.getClientStatus() != null ? ClientStatus.getDescriptionFromCode(dossier.getClientStatus()) : null)
+                        .absClientCreated(dossier.getClient() != null ? dossier.getClient().getAbsCreatedAt() : null)
+                        .name(individual.getName())
+                        .surname(individual.getSurname())
+                        .secondName(individual.getSecondName())
+                        .birthday(LocalDate.from(individual.getBirthdate()))
+                        .series(individual.getDocumentSeries() != null ? individual.getDocumentSeries().replaceAll("\\s+", "") : null)
+                        .number(individual.getDocumentNumber() != null ? individual.getDocumentNumber().replaceAll("\\s+", "") : null)
+                        .inn(Long.valueOf(individual.getInn()))
+                        .build())
+                .findFirst()
+                .orElse(null);
+
+        List<ReportDocumentDetail> documentDetails = reportDocumentDetailRepository.findByReportCompleteDossier(dossier);
+
+        List<ReportIndividualResponseDto.ReportDataDTO.DocumentDetailDTO> documentsDetail = documentDetails.stream()
+                .map(detail -> ReportIndividualResponseDto.ReportDataDTO.DocumentDetailDTO.builder()
+                        .documentTypeName(detail.getDocumentTypeName())
+                        .documentId(detail.getDocument() != null ? detail.getDocument().getDocumentId() : null)
+                        .documentAvailable(detail.getDocumentAvailable())
+                        .documentRequired(detail.getDocumentRequired())
+                        .build())
+                .collect(Collectors.toList());
+
+        ClientProduct clientProduct = null;
+        if(dossier.getDossier() != null && dossier.getDossier().getClientProduct() != null)
+            clientProduct = dossier.getDossier().getClientProduct();
+
+        return ReportIndividualResponseDto.ReportDataDTO.builder()
+                .clientPerson(clientPerson)
+                .dossierId(dossier.getId())
+                .productName(dossier.getDossier() != null && dossier.getDossier().getClientProduct() != null && dossier.getDossier().getClientProduct().getProduct() != null ? dossier.getDossier().getClientProduct().getProduct().getName() : null)
+                .productTypeName(clientProduct != null && clientProduct.getProduct() != null && clientProduct.getProduct().getProductType() != null ? clientProduct.getProduct().getProductType().getType() : null)
+                .productOpen(dossier.getDossier() != null && dossier.getDossier().getClientProduct() != null ? LocalDate.from(dossier.getDossier().getClientProduct().getProductOpen()) : null)
+                .productOpen(LocalDate.from(dossier.getDossier().getClient().getCreatedAt()))
+                .dealId(dossier.getDossier() != null && dossier.getDossier().getClientProduct() != null ? dossier.getDossier().getClientProduct().getDealId() : null)
+                .completeStatus(dossier.getCompleteStatus() != null ? dossier.getCompleteStatus() : null)
+                .completeStatusName(dossier.getCompleteStatus() != null ? CompleteStatusDocuments.valueOf(dossier.getCompleteStatus()).getDescription() : null)
+                .documentsTotal(dossier.getDocumentsTotal())
+                .documentsAvailable(dossier.getDocumentsAvailable())
+                .dossierOfficeId(dossier.getReport() != null && dossier.getReport().getOffice() != null ? dossier.getReport().getOffice().getId() : null)
+                .dossierOfficeName(dossier.getReport() != null && dossier.getReport().getOffice() != null ? dossier.getReport().getOffice().getLabel() : null)
+                .productCreationChannel(clientProduct != null ? clientProduct.getProductCreationChannel() : null)
+                .productActivationChannel(clientProduct != null ? clientProduct.getProductActivationChannel() : null)
+                .productPlanEndDate(clientProduct != null ? clientProduct.getProductPlanEnd() : null)
+                .productEndDate(clientProduct != null ? clientProduct.getProductEnd() : null)
+                .contractStatus(clientProduct != null ? clientProduct.getContractStatus() : null)
+                .accountCode(clientProduct != null && clientProduct.getClientAccounts() != null ? clientProduct.getClientAccounts().stream()
+                        .findFirst()
+                        .map(ClientAccount::getAccountCode)
+                        .orElse(null):null)
+                .documentsDetail(documentsDetail)
+                .build();
+    }
