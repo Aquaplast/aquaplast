@@ -1,26 +1,36 @@
-@EnableAsync  // Включает поддержку @Async
-public class AsyncConfig {
-
-    @Bean("schedulerExecutor")  // Имя бина должно совпадать с @Async("schedulerExecutor")
-    public Executor schedulerExecutor() {
-        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(4);     // Минимальное количество потоков
-        executor.setMaxPoolSize(10);     // Максимальное при нагрузке
-        executor.setQueueCapacity(100);  // Размер очереди задач
-        executor.setThreadNamePrefix("Scheduler-Async-");
-        executor.initialize();
-        return executor;
-    }
-
-
-@Override
-    @Async("schedulerExecutor")  // Запуск в отдельном потоке
-    @Scheduled(initialDelay = 1000L, fixedRateString = "${rr.schedule-delay:5000}")  // fixedRate вместо fixedDelay
-    public void start() {
-        if (enabled) {
-            log.debug("igrr.StarterProcess start call RequestProcessStarterWC");
-            requestProcessStarter.start();
-        }
-    }
-
-
+	@Override
+	public FileInfo download(String id, String consumerId) {
+		refresh();
+		HttpHeaders headers = new HttpHeaders();
+		ResponseEntity<ByteArrayResource> bytes = get(headers, id, consumerId);
+		if (bytes.getStatusCode() == HttpStatus.UNAUTHORIZED) {
+			initialize();
+			bytes = get(headers, id, consumerId);
+		}
+		String fileName = getFilename(bytes.getHeaders());
+		Path storage = storageManager.getStorage(uploadstoreName).toPath();
+		File folder = storage.resolve(UUID.randomUUID().toString()).toFile();
+		if (!folder.exists() && !folder.mkdirs()) {
+			log.error("Error creating target folder [{}], docstore id [{}], filename: [{}]", folder, id, fileName);
+		}
+		Path output = folder.toPath().resolve(fileName);
+		FileInfo info = new FileInfo();
+		if (bytes.hasBody() && null != bytes.getBody()) {
+			try {
+				Files.copy(bytes.getBody().getInputStream(), output, StandardCopyOption.REPLACE_EXISTING);
+				info.setSize(Files.size(output));
+			} catch (IOException e) {
+				log.error("Error writing docstore file [{}], target path [{}], docstore_id [{}]", fileName, folder, id);
+				throw new RuntimeException("Error writing downoaded file", e);
+			}
+		}
+		info.setName(fileName);
+		info.setLocation(storageManager.createURI(storage.relativize(output).toString(), uploadstoreName));
+		info.setCreated(new Date(output.toFile().lastModified()));
+		info.setType(FilesUtils.resolveFileType(fileName));
+		info.setFile(output.toFile());
+		if (info.getFile().exists()) {
+			info.setHash(Md5Hash.digestAsString(info.getFile()));
+		}
+		return info;
+	}
