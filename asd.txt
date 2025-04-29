@@ -1,9 +1,312 @@
-private ResponseEntity<ByteArrayResource> get(HttpHeaders headers, String id, String consumerId) {
+package ru.thprom.igrr.docstore.client;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.net.URISyntaxException;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Component;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.RestTemplate;
+import ru.thprom.igrr.api.NamedFileSystemResource;
+import ru.thprom.igrr.api.domain.FileInfo;
+import ru.thprom.igrr.api.service.StorageManager;
+import ru.thprom.igrr.common.SslUtils;
+import ru.thprom.igrr.util.FilesUtils;
+import ru.thprom.igrr.util.Md5Hash;
+
+import javax.net.ssl.HttpsURLConnection;
+import java.io.File;
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URI;
+import java.net.URLDecoder;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.Collections;
+import java.util.Date;
+import java.util.Objects;
+import java.util.UUID;
+import java.util.regex.Pattern;
+
+import static org.apache.commons.lang3.StringUtils.isNotEmpty;
+
+@Slf4j
+@Component
+public class DocstoreImpl implements Docstore {
+	private static final String STORE_FORMAT
+		= "(%s|%s)://(%s)/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/.+";
+
+	private final Object sync = new Object();
+
+	private final RestTemplate endpoint = new RestTemplate();
+
+	private final String uploadUri;
+
+	private final String downloadUri;
+
+	private final StorageManager storageManager;
+
+	private final String authUri;
+
+	private final String clientId;
+
+	private final String clientSecret;
+
+	private final String reststoreName;
+
+	private final String uploadstoreName;
+
+	private final String storageScheme;
+
+	private final String reststoreScheme;
+
+	private final String separator;
+
+	private final long timeShift;
+
+	private ObjectNode token;
+
+	private MultiValueMap<String, String> body(String grant) {
+		MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+		body.add("grant_type", grant);
+		body.add("client_id", clientId);
+		body.add("client_secret", clientSecret);
+		return body;
+	}
+
+	private HttpHeaders form() {
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+		return headers;
+	}
+
+	private HttpHeaders authorize(HttpHeaders headers) {
+		headers.put("Authorization", Collections.singletonList("Bearer " + token.get("access_token").asText()));
+		return headers;
+	}
+
+	private void setup(ResponseEntity<ObjectNode> response) {
+		token = response.getBody();
+		token.put("timestamp", System.currentTimeMillis() / 1000);
+	}
+
+	private void initialize() {
+		log.info("Initializing docstore: obtaining token");
+		HttpEntity<?> entity = new HttpEntity<>(body("client_credentials"), form());
 		synchronized (sync) {
+			log.info("DOCSTORE LOCK INIT");
+			ResponseEntity<ObjectNode> response = endpoint.exchange(authUri, HttpMethod.POST, entity, ObjectNode.class);
+			if (response.getStatusCode().isError()) {
+				throw new RuntimeException("Error obtaining token " + response);
+			}
+			setup(response);
+		}
+	}
+
+	private void refresh() {
+		if (null == token || token.get("timestamp").asLong() + token.get("expires_in").asLong() < System.currentTimeMillis() / 1000 + timeShift) {
+			initialize();
+		}
+	}
+
+	@Autowired
+	public DocstoreImpl(
+		StorageManager storageManager, @Value("${storage.uploadstore.name}") String uploadstoreName,
+		@Value("${storage.reststore.auth-server-url}") String authUri, @Value("${storage.reststore.client-id}") String clientId,
+		@Value("${storage.reststore.client-secret}") String clientSecret, @Value("${storage.reststore.upload-uri}") String uploadUri,
+		@Value("${storage.reststore.download-uri}") String downloadUri, @Value("${storage.reststore.name}") String reststoreName,
+		@Value("${storage.default-scheme}") String storageScheme, @Value("${storage.reststore.scheme}") String reststoreScheme,
+		@Value("${storage.separator}") String separator, @Value("${storage.reststore.time-shift}") long timeShift
+	) {
+		this.storageManager = storageManager;
+		this.uploadstoreName = uploadstoreName;
+		this.authUri = authUri;
+		this.clientId = clientId;
+		this.clientSecret = clientSecret;
+		this.downloadUri = downloadUri;
+		this.uploadUri = uploadUri;
+		this.reststoreName = reststoreName;
+		this.storageScheme = storageScheme;
+		this.reststoreScheme = reststoreScheme;
+		this.separator = separator;
+		this.timeShift = timeShift;
+		HttpsURLConnection.setDefaultSSLSocketFactory(SslUtils.createEmptySSLContext().getSocketFactory());
+		HttpsURLConnection.setDefaultHostnameVerifier(SslUtils.createHostnameVerifier());
+	}
+
+	private String decode(String name, String encoding) {
+		try {
+			return URLDecoder.decode(name, encoding);
+		} catch (UnsupportedEncodingException e) {
+			log.error("Error decoding filename [{}] with encoding [{}]", name, encoding);
+			return name;
+		}
+	}
+
+	private ResponseEntity<JsonNode> post(MultiValueMap<String, Object> body, HttpHeaders headers) {
+		synchronized (sync) {
+			log.info("DOCSTORE LOCK POST");
+			return endpoint.postForEntity(uploadUri, new HttpEntity<>(body, authorize(headers)), JsonNode.class);
+		}
+	}
+
+	@Override
+	public String upload(File file, String name, String consumerId) {
+		if (!file.exists()) {
+			throw new IllegalArgumentException("File does not exist: " + file.getAbsolutePath());
+		}
+		refresh();
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+		MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+		body.add("file", new NamedFileSystemResource(file, name));
+		body.add("force", false);
+		body.add("public", true);
+		body.add("shared", true);
+		if (isNotEmpty(consumerId)) {
+			body.add("consumerId", consumerId);
+		}
+		log.debug("Uploading file [{}] named: [{}]", file, name);
+		ResponseEntity<JsonNode> response = post(body, headers);
+		log.info("Uploaded file response: {}", response);
+		if (response.getStatusCode() == HttpStatus.UNAUTHORIZED) {
+			initialize();
+			response = post(body, headers);
+		}
+		if (response.getStatusCode() != HttpStatus.OK) {
+			throw new RuntimeException("Store file [" + file + "] failed: " + response.getStatusCode());
+		}
+		return response.getBody().get("file_uuid").asText();
+	}
+
+	private String getFilename(HttpHeaders headers) {
+		String header = headers.getFirst(HttpHeaders.CONTENT_DISPOSITION);
+		if (isNotEmpty(header)) {
+			String[] content = header.split(";");
+			if (content.length > 2 && "attachment".equalsIgnoreCase(content[0])) {
+				String[] name = content[1].split("=");
+				content = content[2].split("\\*=");
+				if (name.length > 1 && "filename".equalsIgnoreCase(name[0].trim()) && content.length > 1 && "filename".equalsIgnoreCase(content[0].trim())) {
+					name[1] = StringUtils.strip(name[1], "\"");
+					content[1] = StringUtils.strip(content[1], "\"");
+					content = content[1].split("''");
+					if (content.length > 1) {
+						return Objects.equals(content[1], name[1]) ? content[1] : decode(content[1], content[0]);
+					}
+				}
+			}
+		}
+		return "unknown";
+	}
+
+	private ResponseEntity<ByteArrayResource> get(HttpHeaders headers, String id, String consumerId) {
+		synchronized (sync) {
+			log.info("DOCSTORE LOCK GET [{}]", id);
 			return endpoint.exchange(downloadUri + (consumerId != null ? "?consumerId=" + consumerId: ""),
 					HttpMethod.GET, new HttpEntity<>(authorize(headers)), ByteArrayResource.class, id);
 		}
 	}
 
+	private ResponseEntity<Void> delete(HttpHeaders headers, String id, String consumerId) {
+		synchronized (sync) {
+			log.info("DOCSTORE LOCK DELETE [{}]", id);
+			try {
+				return endpoint.exchange(downloadUri + (consumerId != null ? "?consumerId=" + consumerId: ""),
+						HttpMethod.DELETE, new HttpEntity<>(authorize(headers)), Void.class, id);
+			} catch (HttpStatusCodeException e) {
+				return ResponseEntity.status(e.getRawStatusCode()).headers(e.getResponseHeaders()).build(); // Пока не работает удаление в бою
+			}
+		}
+	}
 
-	private final Object sync = new Object();
+	@Override
+	public FileInfo download(String id, String consumerId) {
+		refresh();
+		HttpHeaders headers = new HttpHeaders();
+		ResponseEntity<ByteArrayResource> bytes = get(headers, id, consumerId);
+		if (bytes.getStatusCode() == HttpStatus.UNAUTHORIZED) {
+			initialize();
+			bytes = get(headers, id, consumerId);
+		}
+		String fileName = getFilename(bytes.getHeaders());
+		Path storage = storageManager.getStorage(uploadstoreName).toPath();
+		File folder = storage.resolve(UUID.randomUUID().toString()).toFile();
+		if (!folder.exists() && !folder.mkdirs()) {
+			log.error("Error creating target folder [{}], docstore id [{}], filename: [{}]", folder, id, fileName);
+		}
+		Path output = folder.toPath().resolve(fileName);
+		FileInfo info = new FileInfo();
+		if (bytes.hasBody() && null != bytes.getBody()) {
+			try {
+				Files.copy(bytes.getBody().getInputStream(), output, StandardCopyOption.REPLACE_EXISTING);
+				info.setSize(Files.size(output));
+			} catch (IOException e) {
+				log.error("Error writing docstore file [{}], target path [{}], docstore_id [{}]", fileName, folder, id);
+				throw new RuntimeException("Error writing downoaded file", e);
+			}
+		}
+		info.setName(fileName);
+		info.setLocation(storageManager.createURI(storage.relativize(output).toString(), uploadstoreName));
+		info.setCreated(new Date(output.toFile().lastModified()));
+		info.setType(FilesUtils.resolveFileType(fileName));
+		info.setFile(output.toFile());
+		if (info.getFile().exists()) {
+			info.setHash(Md5Hash.digestAsString(info.getFile()));
+		}
+		return info;
+	}
+
+	@Override
+	public URI getLocationByUUID(String uuid) {
+		try {
+			return new URI(downloadUri.replace("{id}", uuid));
+		} catch (URISyntaxException e) {
+			log.error("Can't create URI from [" + downloadUri + "]", e);
+			throw new RuntimeException("Can't create URI from [" + downloadUri + "]");
+		}
+	}
+
+	@Override
+	public boolean delete(String uid, String consumerId) {
+		log.info("Attempt deleting docstore file: [{}]", uid);
+		refresh();
+		HttpHeaders headers = new HttpHeaders();
+		ResponseEntity<Void> status = delete(headers, uid, consumerId);
+		if (status.getStatusCode() == HttpStatus.UNAUTHORIZED) {
+			initialize();
+			status = delete(headers, uid, consumerId);
+		}
+		if (status.getStatusCode() != HttpStatus.OK) {
+			log.warn("Error deleting docstore file: [{}], code [{}]", uid, status.getStatusCode());
+		}
+		return status.getStatusCode() == HttpStatus.OK;
+	}
+
+	@Override
+	public URI locate(String uuid, String name) {
+		int index = name.indexOf(separator);
+		if (index >= 0) {
+			name = name.substring(index + 1);
+		}
+		return storageManager.resolve(storageManager.createURI(uuid, reststoreName), name);
+	}
+
+	@Override
+	public boolean located(URI location) {
+		Pattern p = Pattern.compile(String.format(STORE_FORMAT, storageScheme, reststoreScheme, reststoreName));
+		return p.matcher(location.toString()).matches();
+	}
+}
