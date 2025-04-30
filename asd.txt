@@ -1,10 +1,38 @@
-private final ReentrantLock lock = new ReentrantLock(true); // fair = true
+@SneakyThrows
+    @Override
+    public void delete(String requestId, String id, HttpServletRequest request, HttpServletResponse response) {
+        if (!authorIdResolver.hasAnyRole(request, ROLE_ADMIN_USER, ROLE_DELETE_USER)) {
+            response.sendError(FORBIDDEN);
+            return;
+        }
+        try {
+            UUID uuid = getUuidFromString(id, response);
+            if (uuid == null) return;
+            DownloadInfo downloadInfo = fileInfoRepository.get(uuid);
+            if (downloadInfo == null) {
+                log.warn("File {} not found", uuid);
+                response.sendError(NOT_FOUND);
+                return;
+            }
 
-public void get() {
-    lock.lock();
-    try {
-        // Критическая секция
-    } finally {
-        lock.unlock();
+            var absolutePath = fileService.getAbsolutePath(downloadInfo.getFileLocation());
+
+            if (authorIdResolver.hasRole(request, ROLE_ADMIN_USER) || authorIdResolver.isAuthor(request, downloadInfo.getAuthorId())) {
+                List<UUID> duplicatesDownloadInfoIds = fileInfoRepository.getDuplicatesByLink(absolutePath, uuid);
+
+                if (duplicatesDownloadInfoIds != null && duplicatesDownloadInfoIds.size() > 0) {
+                    fileInfoRepository.delete(uuid);
+                }  else {
+                    if (fileInfoRepository.markForDelete(uuid)) {
+                        zipCompress.deleteFiles(absolutePath);
+                    }
+                }
+            } else {
+                log.warn("File {} delete forbidden", downloadInfo.getUuid());
+                response.sendError(FORBIDDEN);
+            }
+        } catch (Exception e) {
+            log.error(e.getMessage(), e);
+            response.sendError(INTERNAL_SERVER_ERROR, e.getMessage());
+        }
     }
-}
