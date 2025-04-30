@@ -1,14 +1,1 @@
-private volatile ObjectNode token;  // volatile для visibility между потоками
-Использовать атомарные операции для обновления токена:
-
-java
-private void refresh() {
-    if (token == null || isTokenExpired()) {
-        initialize();
-    }
-}
-
-private boolean isTokenExpired() {
-    long currentTime = System.currentTimeMillis() / 1000;
-    return token.get("timestamp").asLong() + token.get("expires_in").asLong() < currentTime + timeShift;
-}
+user query might have needed to see row versions that must be removed
