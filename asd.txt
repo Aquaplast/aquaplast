@@ -9,18 +9,32 @@
 
 
 
- <!-- Логирование времени выполнения -->
-            <setProperty propertyName="methodEndTime">
-                <simple>${date:now:yyyy-MM-dd HH:mm:ss.SSS}</simple>
+<route id="timingLoggerRoute">
+    <description>Reusable route for method execution timing</description>
+    <from uri="direct:logMethodTiming"/>
+    
+    <!-- Параметры (должны быть установлены перед вызовом) -->
+    <choice>
+        <when>
+            <simple>${exchangeProperty.methodName} == null</simple>
+            <setProperty name="methodName">
+                <simple>anonymous_method</simple>
             </setProperty>
-            <setProperty propertyName="methodEndTimestamp">
-                <simple>${date:now:epoch}</simple>
-            </setProperty>
-            <setProperty propertyName="executionTimeMs">
-                <groovy>
-                    (exchange.properties.methodEndTimestamp - exchange.properties.methodStartTimestamp) * 1000
-                </groovy>
-            </setProperty>
-            <log message="Method execution time: Start=${exchangeProperty.methodStartTime}, End=${exchangeProperty.methodEndTime}, Duration=${exchangeProperty.executionTimeMs} ms" loggingLevel="INFO" loggerRef="ru.seventech.esb.technoprom.createPackage.v2.timing"/>
-            
-            <to uri="log:ru.seventech.esb.technoprom.createPackage.v2.end?showAll=false"/>
+        </when>
+    </choice>
+
+    <!-- Расчет времени выполнения -->
+    <setProperty name="methodEndTime">
+        <simple>${date:now:yyyy-MM-dd HH:mm:ss.SSS}</simple>
+    </setProperty>
+    <setProperty name="executionTimeMs">
+        <groovy>
+            (System.currentTimeMillis() - exchange.properties.methodStartTimestamp)
+        </groovy>
+    </setProperty>
+
+    <!-- Логирование -->
+    <log message="[TIMING] Method: ${exchangeProperty.methodName} | Start: ${exchangeProperty.methodStartTime} | End: ${exchangeProperty.methodEndTime} | Duration: ${exchangeProperty.executionTimeMs} ms"
+         loggingLevel="INFO"
+         loggerRef="ru.seventech.esb.timing"/>
+</route>
