@@ -1,1 +1,132 @@
-user query might have needed to see row versions that must be removed
+<post uri="/v2/gate_rr_adapter/createPackage">
+				<description>Создание нового пакета</description>
+				<param name="Authorization" type="header" required="true" description="Токен авторизации (Bearer)"/>
+				<param name="body" type="body" description="json - запрос подробности см. документацию" required="true"/>
+				<route>
+					<to uri="log:ru.seventech.esb.technoprom.createPackage.v2.start?showAll=true"/>
+					<setProperty propertyName="rosrgatewayToken">
+						<simple>${in.header.Authorization}</simple>
+					</setProperty>
+					<doTry>
+						<to uri="direct:ru.seventech.esb.technoprom.prepareRequest.v2"/>
+						<unmarshal>
+							<json library="Jackson" unmarshalTypeName="ru.seventech.esb.technoprom.api.CreatePackageRequest"/>
+						</unmarshal>
+						<setBody>
+							<groovy>
+								def request = new ru.seventech.esb.technoprom.dto.CreatePackageRequestDto()
+								request.setType(exchange.in.body.getPackageType())
+								request.setData(exchange.in.body.getPackageData())
+								request.setOrgId(exchange.in.body.getOrgId())
+								request.setAgentId(exchange.in.body.getAgentId())
+								return request
+							</groovy>
+						</setBody>
+						<setProperty propertyName="initialRequest">
+							<simple>${body}</simple>
+						</setProperty>
+						<!-- Converting organizationData to declarant -->
+						<process ref="organizationDataProcessor"/>
+						<to uri="log:ru.seventech.esb.technoprom.createPackage.v2.beforeRequest?showBody=true"/>
+						<marshal>
+							<json library="Jackson"/>
+						</marshal>
+						<setHeader headerName="Authorization">
+							<simple>${exchangeProperty.rosrgatewayToken}</simple>
+						</setHeader>
+            <toD uri="http4://{{env:url_createPackage_v2}}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
+						<unmarshal>
+							<json library="Jackson" unmarshalTypeName="ru.seventech.esb.technoprom.dto.CreatePackageResponseDto"/>
+						</unmarshal>
+						<setProperty propertyName="createPackageResponse">
+							<simple>${body}</simple>
+						</setProperty>
+						<setProperty propertyName="packageId">
+							<groovy>exchange.in.body.getId()</groovy>
+						</setProperty>
+						<setProperty propertyName="documents">
+							<groovy>
+								exchange.properties.initialRequest.getData().get("declarants")
+							</groovy>
+						</setProperty>
+						<choice>
+							<when>
+								<groovy>
+									exchange.properties.documents != null
+								</groovy>
+								<to uri="direct:ru.seventech.esb.technoprom.saveDocuments.v2"/>
+							</when>
+						</choice>
+						<setProperty propertyName="documents">
+							<groovy>
+								exchange.properties.initialRequest.getData().get("documents")
+							</groovy>
+						</setProperty>
+						<choice>
+							<when>
+								<groovy>
+									exchange.properties.documents != null
+								</groovy>
+								<to uri="direct:ru.seventech.esb.technoprom.saveDocuments.v2"/>
+							</when>
+						</choice>
+						<setProperty propertyName="transfer">
+							<groovy>
+								exchange.properties.initialRequest.getData().get("transfer")
+							</groovy>
+						</setProperty>
+						<choice>
+							<when>
+								<groovy>
+									exchange.properties.transfer != null
+								</groovy>
+								<setProperty propertyName="documents">
+									<groovy>
+										exchange.properties.transfer.get("declarants")
+									</groovy>
+								</setProperty>
+								<choice>
+									<when>
+										<groovy>
+											exchange.properties.documents != null
+										</groovy>
+										<to uri="direct:ru.seventech.esb.technoprom.saveDocuments.v2"/>
+									</when>
+								</choice>
+								<setProperty propertyName="documents">
+									<groovy>
+										exchange.properties.transfer.get("documents")
+									</groovy>
+								</setProperty>
+								<choice>
+									<when>
+										<groovy>
+											exchange.properties.documents != null
+										</groovy>
+										<to uri="direct:ru.seventech.esb.technoprom.saveDocuments.v2"/>
+									</when>
+								</choice>
+							</when>
+						</choice>
+						<setBody>
+							<simple>
+								${exchangeProperty.createPackageResponse}
+							</simple>
+						</setBody>
+						<to uri="log:ru.seventech.esb.technoprom.createPackage.v2.end?showAll=false"/>
+						<marshal>
+							<json library="Jackson"/>
+						</marshal>
+						<doCatch>
+							<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
+							<setHeader headerName="Exchange.HTTP_RESPONSE_CODE">
+								<constant>400</constant>
+							</setHeader>
+							<to uri="log:ru.seventech.esb.technoprom.createPackage.v2.error?showAll=true"/>
+							<setBody>
+								<simple>${exception.getResponseBody()}</simple>
+							</setBody>
+						</doCatch>
+					</doTry>
+				</route>
+			</post>
