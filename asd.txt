@@ -1,40 +1,14 @@
-<route id="timingLoggerRoute">
-    <description>Reusable route for method execution timing (start + end)</description>
-    <from uri="direct:startMethodTiming"/>
-    
-    <!-- Параметры -->
-    <choice>
-        <when>
-            <simple>${exchangeProperty.methodName} == null</simple>
-            <setProperty name="methodName">
-                <simple>anonymous_method</simple>
-            </setProperty>
-        </when>
-    </choice>
-
-    <!-- 1. Инициализация таймера (первая часть) -->
-    <setProperty name="methodStartTime">
-        <simple>${date:now:yyyy-MM-dd HH:mm:ss.SSS}</simple>
-    </setProperty>
-    <setProperty name="methodStartTimestamp">
-        <simple>${date:now:epoch}</simple>
-    </setProperty>
-    
-    <!-- Передаем управление в основной маршрут -->
-    <toD uri="direct:${exchangeProperty.targetRoute}"/>
-    
-    <!-- 2. Финализация таймера (вторая часть) -->
-    <setProperty name="methodEndTime">
-        <simple>${date:now:yyyy-MM-dd HH:mm:ss.SSS}</simple>
-    </setProperty>
-    <setProperty name="executionTimeMs">
-        <groovy>
-            (System.currentTimeMillis() - exchange.properties.methodStartTimestamp)
-        </groovy>
-    </setProperty>
-    
-    <!-- Логирование -->
-    <log message="[TIMING] Method: ${exchangeProperty.methodName} | Duration: ${exchangeProperty.executionTimeMs} ms"
-         loggingLevel="INFO"
-         loggerRef="ru.seventech.esb.timing"/>
-</route>
+2025-05-06 12:47:12,993 ERROR [gate-rr-adapter] org.springframework.boot.SpringApplication [o.s.b.SpringApplication] - Application run failed
+org.apache.camel.RuntimeCamelException: org.apache.camel.FailedToCreateRouteException: Failed to create route logMethodTiming at: >>> Log[[TIMING] Method: ${exchangeProperty.methodName} | Start: ${exchangeProperty.methodStartTime}      | End: ${exchangeProperty.methodEndTime} | Duration: ${exchangeProperty.executionTimeMs} ms     | Info: ${exchangeProperty.logInfo}] <<< in route: Route(logMethodTiming)[[From[direct:logMethodTiming]] -> [Ch... because of No bean could be found in the registry for: ru.seventech.esb.timing of type: org.slf4j.Logger
+at org.apache.camel.util.ObjectHelper.wrapRuntimeCamelException(ObjectHelper.java:1826)
+at org.apache.camel.spring.SpringCamelContext.start(SpringCamelContext.java:136)
+at org.apache.camel.spring.CamelContextFactoryBean.start(CamelContextFactoryBean.java:370)
+at org.apache.camel.spring.CamelContextFactoryBean.onApplicationEvent(CamelContextFactoryBean.java:417)
+at org.apache.camel.spring.CamelContextFactoryBean.onApplicationEvent(CamelContextFactoryBean.java:95)
+at org.springframework.context.event.SimpleApplicationEventMulticaster.doInvokeListener(SimpleApplicationEventMulticaster.java:172)
+at org.springframework.context.event.SimpleApplicationEventMulticaster.invokeListener(SimpleApplicationEventMulticaster.java:165)
+at org.springframework.context.event.SimpleApplicationEventMulticaster.multicastEvent(SimpleApplicationEventMulticaster.java:139)
+at org.springframework.context.support.AbstractApplicationContext.publishEvent(AbstractApplicationContext.java:403)
+at org.springframework.context.support.AbstractApplicationContext.publishEvent(AbstractApplicationContext.java:360)
+at org.springframework.context.support.AbstractApplicationContext.finishRefresh(AbstractApplicationContext.java:897)
+at org.springframework.boot.web.servlet.context.ServletWebServerApplicati
