@@ -1,22 +1,30 @@
-			<get uri="/v2/gate_rr_adapter/docs">
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <springProperty scope="context" name="APP_NAME" source="spring.application.name"/>
+    <springProperty scope="context" name="HOST" source="graylog.host"/>
+    <springProperty scope="context" name="PORT" source="graylog.port"/>
 
-			<get uri="/v1/gate_rr_adapter/ping">
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d %-5level [${APP_NAME}] %logger [%c{10}] - %.-10000msg%n</pattern>
+        </encoder>
+    </appender>
 
+    <appender name="GRAYLOG" class="de.siegmar.logbackgelf.GelfUdpAppender">
+        <graylogHost>${HOST}</graylogHost>
+        <graylogPort>${PORT}</graylogPort>
+        <encoder class="de.siegmar.logbackgelf.GelfEncoder">
+            <staticField>service_name:${APP_NAME}</staticField>
+            <fullPatternLayout>
+                <pattern>%d %-5level [${APP_NAME}] %logger [%c{10}] - %.-10000msg%n</pattern>
+            </fullPatternLayout>
+        </encoder>
+    </appender>
 
-<post uri="/v2/gate_rr_adapter/deletePackage">
-
-			<post uri="/v2/gate_rr_adapter/getArchive">
-
-			<get uri="/v2/gate_rr_adapter/getDocument">
-
-
-			<get uri="/v2/gate_rr_adapter/getConsumer">
-
-
-			<get uri="/v2/gate_rr_adapter/online/objects">
-			<get uri="/v2/gate_rr_adapter/online/regions">
-			<get uri="/v2/gate_rr_adapter/online/districts">
-			<get uri="/v2/gate_rr_adapter/online/object">
-			<get uri="/v2/gate_rr_adapter/orgs">
-			<get uri="/v2/gate_rr_adapter/agents">
-			<post uri="/v2/gate_rr_adapter/restart">
+    <springProfile name="default">
+        <root level="INFO">
+            <appender-ref ref="STDOUT"/>
+            <appender-ref ref="GRAYLOG"/>
+        </root>
+    </springProfile>
+</configuration>
