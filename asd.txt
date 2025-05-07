@@ -1,14 +1,5 @@
-2025-05-06 12:47:12,993 ERROR [gate-rr-adapter] org.springframework.boot.SpringApplication [o.s.b.SpringApplication] - Application run failed
-org.apache.camel.RuntimeCamelException: org.apache.camel.FailedToCreateRouteException: Failed to create route logMethodTiming at: >>> Log[[TIMING] Method: ${exchangeProperty.methodName} | Start: ${exchangeProperty.methodStartTime}      | End: ${exchangeProperty.methodEndTime} | Duration: ${exchangeProperty.executionTimeMs} ms     | Info: ${exchangeProperty.logInfo}] <<< in route: Route(logMethodTiming)[[From[direct:logMethodTiming]] -> [Ch... because of No bean could be found in the registry for: ru.seventech.esb.timing of type: org.slf4j.Logger
-at org.apache.camel.util.ObjectHelper.wrapRuntimeCamelException(ObjectHelper.java:1826)
-at org.apache.camel.spring.SpringCamelContext.start(SpringCamelContext.java:136)
-at org.apache.camel.spring.CamelContextFactoryBean.start(CamelContextFactoryBean.java:370)
-at org.apache.camel.spring.CamelContextFactoryBean.onApplicationEvent(CamelContextFactoryBean.java:417)
-at org.apache.camel.spring.CamelContextFactoryBean.onApplicationEvent(CamelContextFactoryBean.java:95)
-at org.springframework.context.event.SimpleApplicationEventMulticaster.doInvokeListener(SimpleApplicationEventMulticaster.java:172)
-at org.springframework.context.event.SimpleApplicationEventMulticaster.invokeListener(SimpleApplicationEventMulticaster.java:165)
-at org.springframework.context.event.SimpleApplicationEventMulticaster.multicastEvent(SimpleApplicationEventMulticaster.java:139)
-at org.springframework.context.support.AbstractApplicationContext.publishEvent(AbstractApplicationContext.java:403)
-at org.springframework.context.support.AbstractApplicationContext.publishEvent(AbstractApplicationContext.java:360)
-at org.springframework.context.support.AbstractApplicationContext.finishRefresh(AbstractApplicationContext.java:897)
-at org.springframework.boot.web.servlet.context.ServletWebServerApplicati
+java.lang.IllegalArgumentException: Illegal pattern character 'e'
+	at java.text.SimpleDateFormat.compile(SimpleDateFormat.java:826)
+	at java.text.SimpleDateFormat.initialize(SimpleDateFormat.java:634)
+	at java.text.SimpleDateFormat.<init>(SimpleDateFormat.java:605)
+	at java.text.SimpleDateFormat.<init>(SimpleDateFormat.java:580)
