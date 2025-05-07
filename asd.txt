@@ -1,25 +1,14 @@
-<setHeader headerName="message2">
-    <constant>Дополнительный текст</constant>
-</setHeader>
-<process>
-    <groovy>
-        org.slf4j.MDC.put("message2", exchange.getIn().getHeader("message2"));
-    </groovy>
-</process>
-<log message="Основной лог message — попадает в Graylog"/>
-<process>
-    <groovy>org.slf4j.MDC.remove("message2")</groovy>
-</process>
+@Component("mdcMessage2Processor")
+public class MdcMessage2Processor implements Processor {
+    @Override
+    public void process(Exchange exchange) {
+        String msg = exchange.getIn().getHeader("message2", String.class);
+        org.slf4j.MDC.put("message2", msg);
+    }
+}
+Подключи его в XML:
 
-
-<appender name="GRAYLOG" class="de.siegmar.logbackgelf.GelfUdpAppender">
-    <graylogHost>${HOST}</graylogHost>
-    <graylogPort>${PORT}</graylogPort>
-    <encoder class="de.siegmar.logbackgelf.GelfEncoder">
-        <staticField>service_name:${APP_NAME}</staticField>
-        <mdcField>message2</mdcField>
-        <fullPatternLayout>
-            <pattern>%d %-5level [${APP_NAME}] %logger [%c{10}] - %.-10000msg%n</pattern>
-        </fullPatternLayout>
-    </encoder>
-</appender>
+xml
+Копировать
+Редактировать
+<process ref="mdcMessage2Processor"/>
