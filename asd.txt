@@ -1,32 +1,22 @@
-<route id="logMethodTiming">
-    <description>Логирует время выполнения метода</description>
-    <from uri="direct:logMethodTiming"/>
+			<get uri="/v2/gate_rr_adapter/docs">
 
-    <!-- Название метода по умолчанию -->
-    <choice>
-        <when>
-            <simple>${exchangeProperty.methodName} == null</simple>
-            <setProperty propertyName="methodName">
-                <constant>anonymous_method</constant>
-            </setProperty>
-        </when>
-    </choice>
+			<get uri="/v1/gate_rr_adapter/ping">
 
-    <!-- Конец выполнения -->
-    <setProperty propertyName="methodEndTime">
-        <simple>${date:now:yyyy-MM-dd HH:mm:ss.SSS}</simple>
-    </setProperty>
 
-    <!-- Вычисление продолжительности -->
-    <setProperty propertyName="executionTimeMs">
-        <groovy>
-            def start = exchange.getProperty("methodStartTimestamp") ?: System.currentTimeMillis();
-            return System.currentTimeMillis() - start;
-        </groovy>
-    </setProperty>
+<post uri="/v2/gate_rr_adapter/deletePackage">
 
-    <!-- Лог -->
-    <log logName="method.timing"
-         loggingLevel="INFO"
-         message="[TIMING] Method: ${exchangeProperty.methodName} | Start: ${exchangeProperty.methodStartTime} | End: ${exchangeProperty.methodEndTime} | Duration: ${exchangeProperty.executionTimeMs} ms | Info: ${exchangeProperty.logInfo}"/>
-</route>
+			<post uri="/v2/gate_rr_adapter/getArchive">
+
+			<get uri="/v2/gate_rr_adapter/getDocument">
+
+
+			<get uri="/v2/gate_rr_adapter/getConsumer">
+
+
+			<get uri="/v2/gate_rr_adapter/online/objects">
+			<get uri="/v2/gate_rr_adapter/online/regions">
+			<get uri="/v2/gate_rr_adapter/online/districts">
+			<get uri="/v2/gate_rr_adapter/online/object">
+			<get uri="/v2/gate_rr_adapter/orgs">
+			<get uri="/v2/gate_rr_adapter/agents">
+			<post uri="/v2/gate_rr_adapter/restart">
