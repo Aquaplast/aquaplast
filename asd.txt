@@ -1,14 +1,8 @@
-@Component("mdcMessage2Processor")
-public class MdcMessage2Processor implements Processor {
-    @Override
-    public void process(Exchange exchange) {
-        String msg = exchange.getIn().getHeader("message2", String.class);
-        org.slf4j.MDC.put("message2", msg);
-    }
-}
-Подключи его в XML:
-
-xml
-Копировать
-Редактировать
-<process ref="mdcMessage2Processor"/>
+2025-05-07 17:28:47,176 ERROR [gate-rr-adapter] org.springframework.boot.SpringApplication [o.s.b.SpringApplication] - Application run failed
+java.lang.IllegalStateException: Logback configuration error detected: 
+ERROR in ch.qos.logback.core.joran.spi.Interpreter@16:19 - no applicable action for [mdcField], current ElementPath  is [[configuration][appender][mdcField]]
+	at org.springframework.boot.logging.logback.LogbackLoggingSystem.loadConfiguration(LogbackLoggingSystem.java:169)
+	at org.springframework.boot.logging.AbstractLoggingSystem.initializeWithConventions(AbstractLoggingSystem.java:80)
+	at org.springframework.boot.logging.AbstractLoggingSystem.initialize(AbstractLoggingSystem.java:60)
+	at org.springframework.boot.logging.logback.LogbackLoggingSystem.initialize(LogbackLoggingSystem.java:118)
+	at org.springframework.boot.context.logging.LoggingApplicationListener.initializeSystem(LoggingApplicationListener.java:313)
