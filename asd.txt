@@ -10,3 +10,16 @@
 <process>
     <groovy>org.slf4j.MDC.remove("message2")</groovy>
 </process>
+
+
+<appender name="GRAYLOG" class="de.siegmar.logbackgelf.GelfUdpAppender">
+    <graylogHost>${HOST}</graylogHost>
+    <graylogPort>${PORT}</graylogPort>
+    <encoder class="de.siegmar.logbackgelf.GelfEncoder">
+        <staticField>service_name:${APP_NAME}</staticField>
+        <mdcField>message2</mdcField>
+        <fullPatternLayout>
+            <pattern>%d %-5level [${APP_NAME}] %logger [%c{10}] - %.-10000msg%n</pattern>
+        </fullPatternLayout>
+    </encoder>
+</appender>
