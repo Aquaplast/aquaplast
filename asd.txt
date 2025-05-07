@@ -1,3 +1,50 @@
+<route id="getMethodStartTime">
+			<description>Запоминает время начала выполнения метода</description>
+			<from uri="direct:getMethodStartTime"/>
+			<setProperty propertyName="methodStartTime">
+				<simple>${date:now:yyyy-MM-dd HH:mm:ss.SSS}</simple>
+			</setProperty>
+			<setProperty propertyName="methodStartTimestamp">
+				<simple>${date:now:epoch}</simple>
+			</setProperty>
+		</route>
+
+		<route id="logMethodTiming">
+			<description>Логирует время выполнения метода</description>
+			<from uri="direct:logMethodTiming"/>
+			<choice>
+				<when>
+					<simple>${exchangeProperty.methodName} == null</simple>
+					<setProperty propertyName="methodName">
+						<simple>anonymous_method</simple>
+					</setProperty>
+				</when>
+			</choice>
+
+			<setProperty propertyName="methodEndTime">
+				<simple>${date:now:yyyy-MM-dd HH:mm:ss.SSS}</simple>
+			</setProperty>
+			<setProperty propertyName="executionTimeMs">
+				<groovy>
+					(System.currentTimeMillis() - exchange.properties.methodStartTimestamp)
+				</groovy>
+			</setProperty>
+
+			<log message="[TIMING] Method: ${exchangeProperty.methodName} | Start: ${exchangeProperty.methodStartTime}
+			  | End: ${exchangeProperty.methodEndTime} | Duration: ${exchangeProperty.executionTimeMs} ms
+				| Info: ${exchangeProperty.logInfo}"
+				loggingLevel="INFO"/>
+		</route>
+
+RouteId              ProcessorId          Processor                                                                        Elapsed (ms)
+[route3            ] [route3            ] [servlet:/v2/gate_rr_adapter/createPackage?httpMethodRestrict=POST%2COPTIONS&op] [         7]
+[route3            ] [setProperty15     ] [setProperty[methodName]                                                       ] [         1]
+[route3            ] [to14              ] [direct:getMethodStartTime                                                     ] [         0]
+[getMethodStartTime] [setProperty9      ] [setProperty[methodStartTime]                                                  ] [         2]
+[getMethodStartTime] [setProperty10     ] [setProperty[methodStartTimestamp]                                             ] [         2]
+
+Stacktrace
+---------------------------------------------------------------------------------------------------------------------------------------
 java.lang.IllegalArgumentException: Illegal pattern character 'e'
 	at java.text.SimpleDateFormat.compile(SimpleDateFormat.java:826)
 	at java.text.SimpleDateFormat.initialize(SimpleDateFormat.java:634)
