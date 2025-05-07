@@ -36,6 +36,8 @@
 				loggingLevel="INFO"/>
 		</route>
 
+Message History
+---------------------------------------------------------------------------------------------------------------------------------------
 RouteId              ProcessorId          Processor                                                                        Elapsed (ms)
 [route3            ] [route3            ] [servlet:/v2/gate_rr_adapter/createPackage?httpMethodRestrict=POST%2COPTIONS&op] [         7]
 [route3            ] [setProperty15     ] [setProperty[methodName]                                                       ] [         1]
@@ -50,3 +52,21 @@ java.lang.IllegalArgumentException: Illegal pattern character 'e'
 	at java.text.SimpleDateFormat.initialize(SimpleDateFormat.java:634)
 	at java.text.SimpleDateFormat.<init>(SimpleDateFormat.java:605)
 	at java.text.SimpleDateFormat.<init>(SimpleDateFormat.java:580)
+	at org.apache.camel.builder.ExpressionBuilder$80.evaluate(ExpressionBuilder.java:1977)
+	at org.apache.camel.support.ExpressionAdapter.evaluate(ExpressionAdapter.java:36)
+	at org.apache.camel.builder.SimpleBuilder.evaluate(SimpleBuilder.java:92)
+	at org.apache.camel.processor.SetPropertyProcessor.process(SetPropertyProcessor.java:51)
+	at org.apache.camel.processor.RedeliveryErrorHandler.process(RedeliveryErrorHandler.java:548)
+	at org.apache.camel.processor.CamelInternalProcessor.process(CamelInternalProcessor.java:201)
+	at org.apache.camel.processor.Pipeline.process(Pipeline.java:138)
+	at org.apache.camel.processor.Pipeline.process(Pipeline.java:101)
+	at org.apache.camel.processor.CamelInternalProcessor.process(CamelInternalProcessor.java:201)
+	at org.apache.camel.component.direct.DirectProducer.process(DirectProducer.java:76)
+	at org.apache.camel.processor.SendProcessor.process(SendProcessor.java:148)
+	at org.apache.camel.processor.RedeliveryErrorHandler.process(RedeliveryErrorHandler.java:548)
+	at org.apache.camel.processor.CamelInternalProcessor.process(CamelInternalProcessor.java:201)
+	at org.apache.camel.processor.Pipeline.process(Pipeline.java:138)
+	at org.apache.camel.processor.Pipeline.process(Pipeline.java:101)
+	at org.apache.camel.processor.CamelInternalProcessor.process(CamelInternalProcessor.java:201)
+	at org.apache.camel.processor.DelegateAsyncProcessor.process(DelegateAsyncProcessor.java:97)
+	at org.apache.camel.http.common.CamelServlet.doService(CamelServlet.java:213)
