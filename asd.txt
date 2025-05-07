@@ -1,72 +1,32 @@
-<route id="getMethodStartTime">
-			<description>Запоминает время начала выполнения метода</description>
-			<from uri="direct:getMethodStartTime"/>
-			<setProperty propertyName="methodStartTime">
-				<simple>${date:now:yyyy-MM-dd HH:mm:ss.SSS}</simple>
-			</setProperty>
-			<setProperty propertyName="methodStartTimestamp">
-				<simple>${date:now:epoch}</simple>
-			</setProperty>
-		</route>
+<route id="logMethodTiming">
+    <description>Логирует время выполнения метода</description>
+    <from uri="direct:logMethodTiming"/>
 
-		<route id="logMethodTiming">
-			<description>Логирует время выполнения метода</description>
-			<from uri="direct:logMethodTiming"/>
-			<choice>
-				<when>
-					<simple>${exchangeProperty.methodName} == null</simple>
-					<setProperty propertyName="methodName">
-						<simple>anonymous_method</simple>
-					</setProperty>
-				</when>
-			</choice>
+    <!-- Название метода по умолчанию -->
+    <choice>
+        <when>
+            <simple>${exchangeProperty.methodName} == null</simple>
+            <setProperty propertyName="methodName">
+                <constant>anonymous_method</constant>
+            </setProperty>
+        </when>
+    </choice>
 
-			<setProperty propertyName="methodEndTime">
-				<simple>${date:now:yyyy-MM-dd HH:mm:ss.SSS}</simple>
-			</setProperty>
-			<setProperty propertyName="executionTimeMs">
-				<groovy>
-					(System.currentTimeMillis() - exchange.properties.methodStartTimestamp)
-				</groovy>
-			</setProperty>
+    <!-- Конец выполнения -->
+    <setProperty propertyName="methodEndTime">
+        <simple>${date:now:yyyy-MM-dd HH:mm:ss.SSS}</simple>
+    </setProperty>
 
-			<log message="[TIMING] Method: ${exchangeProperty.methodName} | Start: ${exchangeProperty.methodStartTime}
-			  | End: ${exchangeProperty.methodEndTime} | Duration: ${exchangeProperty.executionTimeMs} ms
-				| Info: ${exchangeProperty.logInfo}"
-				loggingLevel="INFO"/>
-		</route>
+    <!-- Вычисление продолжительности -->
+    <setProperty propertyName="executionTimeMs">
+        <groovy>
+            def start = exchange.getProperty("methodStartTimestamp") ?: System.currentTimeMillis();
+            return System.currentTimeMillis() - start;
+        </groovy>
+    </setProperty>
 
-Message History
----------------------------------------------------------------------------------------------------------------------------------------
-RouteId              ProcessorId          Processor                                                                        Elapsed (ms)
-[route3            ] [route3            ] [servlet:/v2/gate_rr_adapter/createPackage?httpMethodRestrict=POST%2COPTIONS&op] [         7]
-[route3            ] [setProperty15     ] [setProperty[methodName]                                                       ] [         1]
-[route3            ] [to14              ] [direct:getMethodStartTime                                                     ] [         0]
-[getMethodStartTime] [setProperty9      ] [setProperty[methodStartTime]                                                  ] [         2]
-[getMethodStartTime] [setProperty10     ] [setProperty[methodStartTimestamp]                                             ] [         2]
-
-Stacktrace
----------------------------------------------------------------------------------------------------------------------------------------
-java.lang.IllegalArgumentException: Illegal pattern character 'e'
-	at java.text.SimpleDateFormat.compile(SimpleDateFormat.java:826)
-	at java.text.SimpleDateFormat.initialize(SimpleDateFormat.java:634)
-	at java.text.SimpleDateFormat.<init>(SimpleDateFormat.java:605)
-	at java.text.SimpleDateFormat.<init>(SimpleDateFormat.java:580)
-	at org.apache.camel.builder.ExpressionBuilder$80.evaluate(ExpressionBuilder.java:1977)
-	at org.apache.camel.support.ExpressionAdapter.evaluate(ExpressionAdapter.java:36)
-	at org.apache.camel.builder.SimpleBuilder.evaluate(SimpleBuilder.java:92)
-	at org.apache.camel.processor.SetPropertyProcessor.process(SetPropertyProcessor.java:51)
-	at org.apache.camel.processor.RedeliveryErrorHandler.process(RedeliveryErrorHandler.java:548)
-	at org.apache.camel.processor.CamelInternalProcessor.process(CamelInternalProcessor.java:201)
-	at org.apache.camel.processor.Pipeline.process(Pipeline.java:138)
-	at org.apache.camel.processor.Pipeline.process(Pipeline.java:101)
-	at org.apache.camel.processor.CamelInternalProcessor.process(CamelInternalProcessor.java:201)
-	at org.apache.camel.component.direct.DirectProducer.process(DirectProducer.java:76)
-	at org.apache.camel.processor.SendProcessor.process(SendProcessor.java:148)
-	at org.apache.camel.processor.RedeliveryErrorHandler.process(RedeliveryErrorHandler.java:548)
-	at org.apache.camel.processor.CamelInternalProcessor.process(CamelInternalProcessor.java:201)
-	at org.apache.camel.processor.Pipeline.process(Pipeline.java:138)
-	at org.apache.camel.processor.Pipeline.process(Pipeline.java:101)
-	at org.apache.camel.processor.CamelInternalProcessor.process(CamelInternalProcessor.java:201)
-	at org.apache.camel.processor.DelegateAsyncProcessor.process(DelegateAsyncProcessor.java:97)
-	at org.apache.camel.http.common.CamelServlet.doService(CamelServlet.java:213)
+    <!-- Лог -->
+    <log logName="method.timing"
+         loggingLevel="INFO"
+         message="[TIMING] Method: ${exchangeProperty.methodName} | Start: ${exchangeProperty.methodStartTime} | End: ${exchangeProperty.methodEndTime} | Duration: ${exchangeProperty.executionTimeMs} ms | Info: ${exchangeProperty.logInfo}"/>
+</route>
