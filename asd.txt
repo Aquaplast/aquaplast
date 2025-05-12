@@ -1,11 +1,5 @@
-logging.pattern.level=%5p [${spring.zipkin.service.name:${spring.application.name:}},%X{traceId:-},%X{spanId:-}]
+<get uri="/v2/gate_rr_adapter/docs">
+<post uri="/v2/gate_rr_adapter/deletePackage">
+<post uri="/v2/gate_rr_adapter/getArchive">
 
-<dependency>
-    <groupId>io.micrometer</groupId>
-    <artifactId>micrometer-tracing</artifactId>
-</dependency>
-<dependency>
-    <groupId>io.micrometer</groupId>
-    <artifactId>micrometer-tracing-bridge-otel</artifactId>
-</dependency>
-
+      <get uri="/v2/gate_rr_adapter/getDocument">
