@@ -1,0 +1,65 @@
+ Git
+основы
+merge, pull, commit
+cherry pick, rebase
+java core
+java collection framework
+java concurency
+maven
+JPA и Hibernate
+relations 
+n+1
+Spring
+di, ioc
+aop
+Spring MVC
+Spring Security
+SQL
+основой синтаксис
+Индексы, внешние ключи
+Анализ запросов
+уровни изоляций
+Кэш (Memcached)
+Логирование (sl4j, log4j, graylog)
+REST, SOAP, WSDL, RPC
+Websocket
+Тестирование
+юнит тесты (junit, Mockito)
+интеграционные тесты (Cucumber)
+нагрузочное тестирование (Jmeter)
+Очереди (RabbitMQ, Artemis, Kafka)
+Архитектура
+монолит и SOA
+горизонтальное и вертикальное масштабирование
+организация релизов
+Http\Https протокол
+Паттерны
+SOLID
+Порождающие, Структурные, Поведенческие
+OAuth
+Docker
+Kubernetes
+Java GC
+Java Memory Model
+Профилирование и мониторинг
+Структуры данных и алгоритмы
+сложность алгоритма
+сортировки
+деревья
+бинарные
+красно-черные
+
+
+
+
+Книги:
+- Java полное руководство Г.Шилдт 
+- Филосовия Java (Брюс Эккель)
+- Структуры данных и алгоритмы java Роберт Лафоре
+- Java Persistence API и Hibernate
+- Параллельное программирование в JAVA на практике
+- Микросервисы. Паттерны разработки и рефакторинга
+- Spring 5 для профессионалов
+- Совершенный код С. Макконнелл
+- Чистый код Роберт Мартин
+- Шаблоны корпоративных приложений Мартин Фаулер
