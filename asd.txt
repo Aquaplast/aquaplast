@@ -1,1 +1,5 @@
-https://wiki.domrf.ru/pages/viewpage.action?pageId=315607601
+<get uri="/v2/gate_rr_adapter/docs">
+<post uri="/v2/gate_rr_adapter/deletePackage">
+<post uri="/v2/gate_rr_adapter/getArchive">
+
+      <get uri="/v2/gate_rr_adapter/getDocument">
