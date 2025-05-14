@@ -1,5 +1,86 @@
-<get uri="/v2/gate_rr_adapter/docs">
-<post uri="/v2/gate_rr_adapter/deletePackage">
-<post uri="/v2/gate_rr_adapter/getArchive">
+SpringBoot 3.1.0+
+Создатель Сергей Краснов, отредактировано 30 окт. 24
+Шаги для подключения:
+Добавить зависимости
 
-      <get uri="/v2/gate_rr_adapter/getDocument">
+<dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>io.opentelemetry.instrumentation</groupId>
+                <artifactId>opentelemetry-instrumentation-bom</artifactId>
+                <version>2.9.0</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+<dependencies>...<dependency>
+            <groupId>io.opentelemetry.instrumentation</groupId>
+            <artifactId>opentelemetry-spring-boot-starter</artifactId>
+            <version>2.9.0</version>
+        </dependency>
+
+В application.yaml добавить:
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+#....
+ 
+otel:
+  exporter:
+    otlp:
+      endpoint: ${OTLP_ENDPOINT:http://vmoperator-opentelemetry-collector.vm-operator.svc.cluster.local:4317}
+      traces:
+        protocol: grpc
+  service:
+    name: lkp-test-admin-service
+  instrumentation:
+    http:
+      server:
+        emit-experimental-telemetry: true
+    micrometer:
+      enabled: true
+  propagators:
+    - tracecontext
+  traces:
+    sampler: always_on
+
+Основные параметры - это endpoint (подставить нужный урл отсюда: Настройка и подключение), protocol: grpc, и traces.sampler: always_on (по умолчанию там стоит parentbased_always_on, меньше трейсов приходит)
+
+Проверить трейсы в графане:
+https://grafana.domrfbank.ru/explore?schemaVersion=1&panes=%7B%22qzq%22:%7B%22datasource%22:%22c6398d92-74bb-40bd-8020-8b1d7d1a37eb%22,%22queries%22:%5B%7B%22refId%22:%22A%22,%22datasource%22:%7B%22type%22:%22tempo%22,%22uid%22:%22c6398d92-74bb-40bd-8020-8b1d7d1a37eb%22%7D,%22queryType%22:%22traceqlSearch%22,%22limit%22:20,%22tableType%22:%22traces%22,%22filters%22:%5B%7B%22id%22:%224c10b3c4%22,%22operator%22:%22%3D%22,%22scope%22:%22span%22%7D%5D%7D%5D,%22range%22:%7B%22from%22:%22now-1h%22,%22to%22:%22now%22%7D%7D%7D&orgId=1
+Выбрать в фильтре Service Name значение, указанное в otel.service.name
+
+Больше информации по стартеру OpenTelemetry и его конфигурации: https://opentelemetry.io/docs/zero-code/java/spring-boot-starter/
+
+
+
+Logger OpenTelemetry
+Для того, чтобы увидеть trace_id/span_id в логах, необходимо сделать следующее:
+
+Добавить зависимость
+
+<dependency>
+    <groupId>io.opentelemetry.instrumentation</groupId>
+    <artifactId>opentelemetry-logback-mdc-1.0</artifactId>
+    <version>2.9.0-alpha</version>
+</dependency>
+
+Добавить appender в logback.xml
+
+<appender name="OTEL" class="io.opentelemetry.instrumentation.logback.mdc.v1_0.OpenTelemetryAppender">
+    <appender-ref ref="CONSOLE" />
+</appender>
+<root level="info">
+    <appender-ref ref="OTEL"/>
+</root>
+
+При необходимости добавить pattern, например,
+
+logging.pattern.level = trace_id=%mdc{trace_id} span_id=%mdc{span_id} trace_flags=%mdc{trace_flags} %5p
+
+Но это необязательно, OpenTelemetryAppender сам прокинет нужные параметры:
