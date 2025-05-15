@@ -1,0 +1,97 @@
+# Default values for test.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+metadata:
+  labels:
+    developer: 7tech
+configmap:
+  metadata:
+    name: configmap-gate-rr-adapter
+  data:
+    graylog_stream: integration_test
+    server_port: 8080
+    spring_application_name: gate-rr-adapter
+    docstore_host_bank: edk-test.domrfbank.ru
+    docstore_host_dom: lk.ahml.test
+    docstore_path: /docstore/api/v2/
+    docstore_uploadFile: docstore/api/v1/
+    camel_component_servlet_mapping_context_path: /private/*
+    url_createPackage_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2
+    url_createApplication_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2/%1$s/actions/rr.xml.prepare
+    url_createApplication_apix: rr-generate-service.mdlw.ahml.stage/api/integration/v2/%1$s/actions/rr.xml.prepare.APIX
+    url_deletePackage_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2/%1$s
+    url_addApplication_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2/%1$s/documents
+    url_getPackage_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2/%1$s
+    url_createZip_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2/%1$s/actions/rr.package.create
+    url_sendZip_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2/%1$s/actions/rr.package.send
+    url_getArchive_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2/%1$s/package
+    url_attachDocument_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2/%1$s/documents/%2$s/image/external
+    url_attachSignature_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2/%1$s/documents/%2$s/signature/external
+    url_getDocument_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2/%1$s/documents/%2$s/image
+    url_getConsumer_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2/consumer
+    url_getFiles_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2/%1$s/responses/%2$s/files
+    url_downloadFile_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2/%1$s/responses/%2$s/files/%3$s
+    url_objects_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2/online/objects?source=%1$s&number=%2$s&region=%3$s&district=%4$s&settlement=%5$s&street=%6$s&house=%7$s&building=%8$s&structure=%9$s&apartment=%10$s&numberType=%11$s&cacheUse=%12$s
+    url_regions_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2/online/regions?source=%1$s&cacheUse=%2$s
+    url_districts_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2/online/districts?source=%1$s&region=%2$s&cacheUse=%3$s
+    url_object_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2/online/object?source=%1$s&objectId=%2$s&cacheUse=%3$s
+    url_restart_v2: rr-generate-service.mdlw.ahml.stage/api/integration/requests/%1$s/restart
+    url_orgs_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2/orgs
+    url_agents_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2/agents
+    spring_security_oauth2_client_provider_dom_token_uri: https://id-ftest.ahml1.ru/auth/realms/internal-dom-realm/protocol/openid-connect/token
+
+command: "['/bin/sh', '-c']"
+args: "['java -Xms128m -Xmx512m -jar /opt/*.jar']"
+
+ingressroute:
+  matchRule: Host(`gate-rr-adapter.test.mdlw.domrfbank.ru`) && (PathPrefix(`/`))
+  sticky: true
+  scheme: http
+  tls_secret: tls-integration-test
+
+replicaCount: 1
+
+imagePullSecrets:
+  name: integration-artifactory
+
+readinessProbe:
+  path: /actuator/health/readiness
+  initialDelaySeconds: 60
+  periodSeconds: 15
+livenessProbe:
+  path: /actuator/health/liveness
+  initialDelaySeconds: 60
+  periodSeconds: 15
+
+limits:
+  memory: "768Mi"
+  cpu: "300m"
+requests:
+  memory: "128Mi"
+  cpu: "50m"
+
+service:
+  type: ClusterIP
+  app:
+    port: 8080
+    targetPort: http
+    protocol: TCP
+    name: http
+    env: preprod
+
+podSecurityContext:
+  fsGroup: 20002
+  supplementalGroups: [20002]
+  runAsGroup: 20002
+  runAsNonRoot: true
+  runAsUser: 20002
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  capabilities:
+    drop: [ALL]
+  privileged: false
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
