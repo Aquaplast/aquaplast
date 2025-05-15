@@ -1,4 +1,33 @@
-// Добавляем MDC
-    if (event.getMDCPropertyMap() != null) {
-        map.putAll(event.getMDCPropertyMap());
-    }
+<route id="ru.seventech.esb.technoprom.saveDocuments.v2">
+			<from uri="direct:ru.seventech.esb.technoprom.saveDocuments.v2"/>
+			<to uri="log:ru.seventech.esb.technoprom.saveDocuments.v2.start"/>
+			<loop>
+				<groovy>
+					exchange.properties.documents.size()
+				</groovy>
+				<setProperty propertyName="document">
+					<groovy>
+						exchange.properties.documents.get(exchange.properties.CamelLoopIndex)
+					</groovy>
+				</setProperty>
+				<!--				<process ref="testProcessor"/>-->
+				<choice>
+					<when>
+						<groovy>exchange.properties.document.get("agent") != null</groovy>
+						<!--						<process ref="testProcessor"/>-->
+						<log message="Document agent gate-rr-adapter ${exchange}" loggingLevel="ERROR" logName="adapter-logging-sys"/>
+						<setProperty propertyName="document">
+							<groovy>
+								exchange.properties.document.get("agent").get("document")
+							</groovy>
+						</setProperty>
+						<to uri="direct:ru.seventech.esb.technoprom.saveDocument.v2"/>
+					</when>
+					<when>
+						<groovy>exchange.properties.document.get("documentId") != null</groovy>
+						<to uri="direct:ru.seventech.esb.technoprom.saveDocument.v2"/>
+					</when>
+				</choice>
+			</loop>
+			<to uri="log:ru.seventech.esb.technoprom.saveDocuments.v2.end"/>
+		</route>
