@@ -80,3 +80,7 @@ org.apache.camel.http.common.HttpOperationFailedException → org.apache.camel.h
 Заголовки HTTP:
 
 Exchange.HTTP_RESPONSE_CODE → Exchange.HTTP_RESPONSE_STATUS
+
+<setProperty name="rosrgatewayToken">
+						<method bean="authService" method="getToken"/>
+					</setProperty>
