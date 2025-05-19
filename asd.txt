@@ -1,1 +1,6 @@
---add-modules java.xml.bind
+<!-- For Maven -->
+<dependency>
+    <groupId>org.glassfish.jaxb</groupId>
+    <artifactId>jaxb-runtime</artifactId>
+    <version>4.0.4</version> <!-- or newer -->
+</dependency>
