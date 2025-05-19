@@ -31,3 +31,52 @@ xml
         <!-- Конфигурация остается прежней -->
     </camelContext>
 </beans>
+
+
+
+
+<rest path="/private">
+    <post uri="/v2/gate_rr_adapter/createPackage">
+        <description>Создание нового пакета</description>
+        <param name="Authorization" type="header" required="true" description="Токен авторизации (Bearer)"/>
+        <param name="body" type="body" description="json - запрос" required="true"/>
+        <route>
+            <setProperty name="methodName">
+                <simple>createPackage</simple>
+            </setProperty>
+            <to uri="direct:getMethodStartTime"/>
+            
+            <doTry>
+                <!-- Остальная логика маршрута остается прежней -->
+                <to uri="direct:ru.seventech.esb.technoprom.prepareRequest.v2"/>
+                
+                <doCatch>
+                    <exception>org.apache.camel.http.base.HttpOperationFailedException</exception>
+                    <setHeader name="Exchange.HTTP_RESPONSE_STATUS">
+                        <constant>400</constant>
+                    </setHeader>
+                    <setBody>
+                        <simple>${exception.responseBody}</simple>
+                    </setBody>
+                </doCatch>
+            </doTry>
+        </route>
+    </post>
+</rest>
+
+
+
+Критические изменения в Camel 3.x
+Пакеты исключений:
+
+org.apache.camel.http.common.HttpOperationFailedException → org.apache.camel.http.base.HttpOperationFailedException
+
+Компоненты:
+
+Компонент http4 переименован в http
+
+Компонент jetty9 переименован в jetty
+
+Заголовки HTTP:
+
+Exchange.HTTP_RESPONSE_CODE → Exchange.HTTP_RESPONSE_STATUS
