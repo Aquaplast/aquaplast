@@ -77,12 +77,41 @@ org.apache.camel.http.common.HttpOperationFailedException → org.apache.camel.h
 
 Компонент jetty9 переименован в jetty
 
-Заголовки HTTP:
 
-Exchange.HTTP_RESPONSE_CODE → Exchange.HTTP_RESPONSE_STATUS
-
-<script>
-										<groovy>
-											exchange.properties.file.image.setLocation(('1'.equals(exchange.properties.file.consumerId) ? exchange.properties.host_bank : exchange.properties.host_dom) + exchange.properties.path + exchange.properties.uuid)
-										</groovy>
-									</script>
+<doCatch>
+								<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
+								<setProperty name="httpResponseCode">
+										<groovy>${exception.getStatusCode()}</groovy>
+								</setProperty>
+								<to uri="log:ru.seventech.esb.technoprom.performPostRequest.httpError?showAll=true"/>
+								<setHeader name="Exchange.HTTP_RESPONSE_STATUS">
+										<simple>${exchangeProperty.httpResponseCode}</simple>
+								</setHeader>
+								<setBody>
+										<simple>${exception.getResponseBody()}</simple>
+								</setBody>
+								<stop/>
+						</doCatch>
+						<doCatch>
+							<exception>java.net.SocketTimeoutException</exception>
+							<handled>
+								<constant>false</constant>
+							</handled>
+						</doCatch>
+						<doCatch>
+							<exception>java.net.SocketException</exception>
+							<handled>
+								<constant>false</constant>
+							</handled>
+						</doCatch>
+						<doCatch>
+								<exception>java.lang.Exception</exception>
+								<to uri="log:ru.seventech.esb.technoprom.performPostRequest.generalError?showAll=true"/>
+								<setHeader name="Exchange.HTTP_RESPONSE_STATUS">
+										<constant>500</constant>
+								</setHeader>
+								<setBody>
+										<simple>Error processing request: ${exception.message}</simple>
+								</setBody>
+								<stop/>
+						</doCatch>
