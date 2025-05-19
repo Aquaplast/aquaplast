@@ -81,6 +81,8 @@ org.apache.camel.http.common.HttpOperationFailedException → org.apache.camel.h
 
 Exchange.HTTP_RESPONSE_CODE → Exchange.HTTP_RESPONSE_STATUS
 
-<setProperty name="rosrgatewayToken">
-						<method bean="authService" method="getToken"/>
-					</setProperty>
+<script>
+										<groovy>
+											exchange.properties.file.image.setLocation(('1'.equals(exchange.properties.file.consumerId) ? exchange.properties.host_bank : exchange.properties.host_dom) + exchange.properties.path + exchange.properties.uuid)
+										</groovy>
+									</script>
