@@ -17,3 +17,17 @@
         <artifactId>camel-http-starter</artifactId> <!-- Было camel-http4 -->
         <version>${camel.version}</version>
     </dependency>
+
+
+Namespace и конфигурация контекста
+xml
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="
+         http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+         http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd">
+
+    <camelContext xmlns="http://camel.apache.org/schema/spring" id="gate_rr_adapter" useMDCLogging="true" logMask="true">
+        <!-- Конфигурация остается прежней -->
+    </camelContext>
+</beans>
