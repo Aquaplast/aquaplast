@@ -1,8 +1,1 @@
-мая 19, 2025 10:33:00 AM com.sun.xml.bind.v2.runtime.reflect.opt.Injector <clinit>
-SEVERE: null
-java.security.PrivilegedActionException: java.lang.NoSuchMethodException: sun.misc.Unsafe.defineClass(java.lang.String,[B,int,int,java.lang.ClassLoader,java.security.ProtectionDomain)
-	at java.base/java.security.AccessController.doPrivileged(AccessController.java:575)
-	at com.sun.xml.bind.v2.runtime.reflect.opt.Injector.<clinit>(Injector.java:197)
-	at com.sun.xml.bind.v2.runtime.reflect.opt.AccessorInjector.prepare(AccessorInjector.java:81)
-	at com.sun.xml.bind.v2.runtime.reflect.opt.OptimizedAccessorFactory.get(OptimizedAccessorFactory.java:125)
-	at com.sun.xml.bind.v2.runtime.reflect.Accessor$GetterSetterReflection.optimize(Accessor.java:402)
+-Dcom.sun.xml.bind.v2.bytecode.ClassTailor.noOptimize=true
