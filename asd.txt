@@ -78,40 +78,7 @@ org.apache.camel.http.common.HttpOperationFailedException → org.apache.camel.h
 Компонент jetty9 переименован в jetty
 
 
-<doCatch>
-								<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
-								<setProperty name="httpResponseCode">
-										<groovy>${exception.getStatusCode()}</groovy>
-								</setProperty>
-								<to uri="log:ru.seventech.esb.technoprom.performPostRequest.httpError?showAll=true"/>
-								<setHeader name="Exchange.HTTP_RESPONSE_STATUS">
-										<simple>${exchangeProperty.httpResponseCode}</simple>
-								</setHeader>
-								<setBody>
-										<simple>${exception.getResponseBody()}</simple>
-								</setBody>
-								<stop/>
-						</doCatch>
-						<doCatch>
-							<exception>java.net.SocketTimeoutException</exception>
-							<handled>
-								<constant>false</constant>
-							</handled>
-						</doCatch>
-						<doCatch>
-							<exception>java.net.SocketException</exception>
-							<handled>
-								<constant>false</constant>
-							</handled>
-						</doCatch>
-						<doCatch>
-								<exception>java.lang.Exception</exception>
-								<to uri="log:ru.seventech.esb.technoprom.performPostRequest.generalError?showAll=true"/>
-								<setHeader name="Exchange.HTTP_RESPONSE_STATUS">
-										<constant>500</constant>
-								</setHeader>
-								<setBody>
-										<simple>Error processing request: ${exception.message}</simple>
-								</setBody>
-								<stop/>
-						</doCatch>
+<exception>java.net.SocketException</exception>
+        <throwException exceptionType="java.net.SocketException">
+            <simple>${exception.message}</simple>
+        </throwException>
