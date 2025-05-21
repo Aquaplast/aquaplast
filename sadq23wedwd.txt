@@ -1,167 +1,73 @@
+package ru.seventech.esb.technoprom.config;
+
+import java.security.SecureRandom;
+import java.security.cert.X509Certificate;
+import java.util.concurrent.TimeUnit;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.camel.component.http4.HttpClientConfigurer;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.config.RegistryBuilder;
+import org.apache.http.conn.socket.ConnectionSocketFactory;
+import org.apache.http.conn.socket.PlainConnectionSocketFactory;
+import org.apache.http.conn.ssl.NoopHostnameVerifier;
+import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
+import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
+import org.apache.http.ssl.SSLContextBuilder;
+
+/**
+ * Created by @author S. Gorev
+ * Email: sgorev@regioncom.ru
+ */
 @Slf4j
-@Component
-public class SpvSoapAdapter {
-	private final JaxWsProxyFactoryBean factory;
+public class TrustAllHttpClientConfigurer implements HttpClientConfigurer {
 
-	private final Map<CredentialsProfile, ExternalSEI> soaps = new HashMap<>();
+    @Override
+    public void configureHttpClient(HttpClientBuilder clientBuilder) {
+        try {
+            SSLContextBuilder builder = new SSLContextBuilder();
+            TrustManager[] trustAllCerts = new TrustManager[]{
+                    new X509TrustManager() {
+                        public X509Certificate[] getAcceptedIssuers() {
+                            return null;
+                        }
 
-	@Value("${requests.timeout}")
-	private int timeout;
+                        public void checkClientTrusted(X509Certificate[] certs, String authType) {
+                        }
 
-	@Value("${service.tls.disable-cn-check}")
-	private boolean disableCnCheck;
-
-	private final AtomicLong createRequestCounter = new AtomicLong(0L);
-
-	public SpvSoapAdapter() {
-		factory = new JaxWsProxyFactoryBean();
-		factory.setServiceClass(ru.thprom.igrr.external.ws.ExternalSEI.class);
-		factory.setServiceName(new QName("http://pgu.fccland.ru/PkiVerifyService/", "PkiVerifyService"));
-		factory.setEndpointName(new QName("http://pgu.fccland.ru/PkiVerifyService/", "PkiVerifyServiceSoap"));
-	}
-
-	private ExternalSEI get(Profile profile) {
-		CredentialsProfile cp = new CredentialsProfile(profile.getJtlsWsUri(), profile.getUserId(), null);
-		ExternalSEI soap = soaps.get(cp);
-		if (null == soap) {
-			factory.setAddress(profile.getJtlsWsUri());
-			soap = (ExternalSEI)factory.create();
-			Client client = ClientProxy.getClient(soap);
-			HTTPConduit conduit = (HTTPConduit)client.getConduit();
-			new WsClientTuner(profile.getUserId(), null, null, timeout)
-				.tuneHeaders(client).tuneLogs(client).tuneTimeouts(client);
-			if (JtlsHelper.isSslEnabled(profile.getJtlsWsUri())) {
-				TLSClientParameters tlsClientParameters = conduit.getTlsClientParameters() != null
-					? conduit.getTlsClientParameters()
-					: new TLSClientParameters();
-				tlsClientParameters.setSSLSocketFactory(JtlsHelper.createSSLSocketFactory(
-					profile.getJtlsCaLocation(), profile.getJtlsAlias(), profile.getJtlsPassword()
-				));
-				tlsClientParameters.setDisableCNCheck(disableCnCheck);
-				conduit.setTlsClientParameters(tlsClientParameters);
-			}
-			soaps.put(cp, soap);
-		}
-		return soap;
-	}
-
-	public String createRequest(Profile profile, long requestId, String region, String okato, String oktmo, String requestType, File archive) {
-		try {
-			DataSource source = new FileDataSource(archive);
-			DataHandler requestData = new DataHandler(source);
-			Holder<String> requestNumberHolder = new Holder<>();
-			Holder<OperationStatus> statusHolder = new Holder<>();
-			get(profile).createRequest(region, okato, oktmo, requestData, requestType, requestNumberHolder, statusHolder);
-			OperationStatus status = statusHolder.value;
-			if (!status.isResult()) {
-				log.error("#[{}] Error creating request: {}", requestId, status.getMessage());
-				return null;
-			}
-			String requestNumber = requestNumberHolder.value;
-			log.info("#[{}] Successfully created request with number [{}]", requestId, requestNumber);
-			return requestNumber;
-		} finally {
-			if (!archive.delete()) {
-				log.warn("#[{}] Error deleting file [{}]", requestId, archive);
-			}
-		}
-	}
-
-	public List<ru.thprom.igrr.external.api.Event> getNextEvents(Profile profile, String lastEventId) {
-		log.info("Load event list start with [{}]", lastEventId);
-		List<ru.thprom.igrr.external.api.Event> result = new ArrayList<>();
-		Holder<List<EventStruct>> eventListHolder = new Holder<>();
-		Holder<OperationStatus> statusHolder = new Holder<>();
-		try {
-		 	get(profile).getEvents(lastEventId, eventListHolder, statusHolder);
-		} catch (Exception e) {
-			String message = LogHelper.withErrId(String.format(
-				"%s failed to retrieve events after [%s]: %s",
-				ErrorMarker.WS_CONNECTION_FAILED, lastEventId, e.getMessage()
-			));
-			log.error(message, e);
-			throw new RuntimeException(message, e);
-		}
-		OperationStatus status = statusHolder.value;
-		List<EventStruct> externalList = eventListHolder.value;
-		if (!status.isResult()) {
-			log.error(String.format("Load event list error: %s", status.getMessage()));
-			return result;
-		} else {
-			log.info("Load event list result, status = {}, eventCount = {}", status.getMessage(), externalList.size());
-		}
-		for (EventStruct struct: externalList) {
-			Date date = struct.getEventDate().toGregorianCalendar().getTime();
-			ru.thprom.igrr.external.api.Event e = new ru.thprom.igrr.external.api.Event(struct.getEventID(), struct.getEventType(), date, struct.getRequestNumber(), false, null);
-			log.info("Loaded event [{}]", e);
-			result.add(e);
-		}
-		log.info("Loaded [{}] next events", result.size());
-		return result;
-	}
-
-	public void getEventDetails(Profile profile, String eventId, FileHandler fileHandler) throws WSException {
-		log.info("Get event details before {} ", eventId);
-		Holder<String> xmlHolder = new Holder<>();
-		Holder<DataHandler> zipHolder = new Holder<>();
-		Holder<OperationStatus> statusHolder = new Holder<>();
-		try {
-			get(profile).loadEventDetails(eventId, xmlHolder, zipHolder, statusHolder);
-		} catch (Exception e) {
-			String message = LogHelper.withErrId(String.format(
-				"%s failed to retrieve event details [%s]: %s",
-				ErrorMarker.WS_CONNECTION_FAILED, eventId, e.getMessage()
-			));
-			log.error(message, e);
-			throw new RuntimeException(message, e);
-		}
-		log.info("Get event details after {} ", eventId);
-		log.info(
-			"Get event details status {}   xml {}   zip {}",
-			statusHolder.value.isResult() ? statusHolder.value.getMessage() : "no",
-			xmlHolder.value != null ? xmlHolder.value : "no",
-			zipHolder.value != null ? "yes" : "no"
-		);
-		OperationStatus status = statusHolder.value;
-		if (!status.isResult()) {
-			log.error("Error loading event details for [{}]: [{}]", eventId, status.getMessage());
-			throw new WSException(status.getMessage());
-		}
-		try {
-			InputStream in = zipHolder.value == null ? null : zipHolder.value.getInputStream();
-			fileHandler.save(xmlHolder.value, in);
-		} catch (IOException e) {
-			String message = String.format("Error getting zip data for [%s]", eventId);
-			log.error(message, e);
-			throw new WSException(message, e);
-		}
-		log.info("Get event details full success [{}]", eventId);
-	}
-
-	public boolean deleteEvent(Profile profile, List<String> eventIdList) {
-		if (eventIdList != null && !eventIdList.isEmpty()) {
-			log.info("send to deletion {}", eventIdList);
-			try {
-				OperationStatus status = get(profile).deleteEvents(eventIdList);
-				if (status.isResult()) {
-					log.info("Successfully deleted [{}] events", eventIdList.size());
-				} else {
-					log.warn("Event list deletion failed with message [{}], [{}]", status.getMessage(), eventIdList);
-				}
-				return status.isResult();
-			} catch (Exception e) {
-				String message = LogHelper.withErrId(String.format(
-					"%s failed to delete events [%s]: %s",
-					ErrorMarker.WS_CONNECTION_FAILED, eventIdList, e.getMessage()
-				));
-				log.error(message, e);
-				throw new RuntimeException(message, e);
-			}
-		}
-		return false;
-	}
-
-	public interface FileHandler {
-		void save(String xml, InputStream data);
-	}
+                        public void checkServerTrusted(X509Certificate[] certs, String authType) {
+                        }
+                    }
+            };
+            SSLContext sc = null;
+            sc = builder.build();
+            sc.init(null, trustAllCerts, new SecureRandom());
+            SSLConnectionSocketFactory sslsf = new SSLConnectionSocketFactory(sc, NoopHostnameVerifier.INSTANCE);
+            PoolingHttpClientConnectionManager poolingmgr = new PoolingHttpClientConnectionManager(
+                    RegistryBuilder.<ConnectionSocketFactory>create()
+                            .register("http", PlainConnectionSocketFactory.getSocketFactory())
+                            .register("https", sslsf)
+                            .build(),
+                    null,
+                    null,
+                    null,
+                    41 * 60 * 1000, // Время жизни соединения в пуле
+                     TimeUnit.MILLISECONDS);
+            poolingmgr.setMaxTotal(200);
+            poolingmgr.setDefaultMaxPerRoute(200);
+            clientBuilder.setKeepAliveStrategy((response, context) ->  60 * 1000); // Время жизни соединения
+            clientBuilder.setConnectionManager(poolingmgr);
+            clientBuilder.setDefaultRequestConfig(RequestConfig.custom()
+                .setSocketTimeout(38 * 60 * 1000) // Время ожидания получения данных от сервера после установления соединения
+                .setConnectionRequestTimeout(60 * 1000) // Время ожидания получения соединения из пула
+                .setConnectTimeout(60 * 1000) // Время ожидания установления соединения с сервером
+                .build()
+            );
+        } catch (Exception e) {
+            log.error("configureHttpClient error: {}", e.getMessage());
+        }
+    }
 }
