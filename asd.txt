@@ -78,7 +78,4 @@ org.apache.camel.http.common.HttpOperationFailedException → org.apache.camel.h
 Компонент jetty9 переименован в jetty
 
 
-<exception>java.net.SocketException</exception>
-        <throwException exceptionType="java.net.SocketException">
-            <simple>${exception.message}</simple>
-        </throwException>
+egrn-ws "ezak-ws" external-ws" tectus-ws"
