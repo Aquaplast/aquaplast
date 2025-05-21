@@ -1,73 +1,7 @@
-package ru.seventech.esb.technoprom.config;
+// CHANGED: SSLContextBuilder -> SSLContexts
+import org.apache.http.ssl.SSLContexts;
 
-import java.security.SecureRandom;
-import java.security.cert.X509Certificate;
-import java.util.concurrent.TimeUnit;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.camel.component.http4.HttpClientConfigurer;
-import org.apache.http.client.config.RequestConfig;
-import org.apache.http.config.RegistryBuilder;
-import org.apache.http.conn.socket.ConnectionSocketFactory;
-import org.apache.http.conn.socket.PlainConnectionSocketFactory;
-import org.apache.http.conn.ssl.NoopHostnameVerifier;
-import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
-import org.apache.http.ssl.SSLContextBuilder;
-
-/**
- * Created by @author S. Gorev
- * Email: sgorev@regioncom.ru
- */
-@Slf4j
-public class TrustAllHttpClientConfigurer implements HttpClientConfigurer {
-
-    @Override
-    public void configureHttpClient(HttpClientBuilder clientBuilder) {
-        try {
-            SSLContextBuilder builder = new SSLContextBuilder();
-            TrustManager[] trustAllCerts = new TrustManager[]{
-                    new X509TrustManager() {
-                        public X509Certificate[] getAcceptedIssuers() {
-                            return null;
-                        }
-
-                        public void checkClientTrusted(X509Certificate[] certs, String authType) {
-                        }
-
-                        public void checkServerTrusted(X509Certificate[] certs, String authType) {
-                        }
-                    }
-            };
-            SSLContext sc = null;
-            sc = builder.build();
-            sc.init(null, trustAllCerts, new SecureRandom());
-            SSLConnectionSocketFactory sslsf = new SSLConnectionSocketFactory(sc, NoopHostnameVerifier.INSTANCE);
-            PoolingHttpClientConnectionManager poolingmgr = new PoolingHttpClientConnectionManager(
-                    RegistryBuilder.<ConnectionSocketFactory>create()
-                            .register("http", PlainConnectionSocketFactory.getSocketFactory())
-                            .register("https", sslsf)
-                            .build(),
-                    null,
-                    null,
-                    null,
-                    41 * 60 * 1000, // Время жизни соединения в пуле
-                     TimeUnit.MILLISECONDS);
-            poolingmgr.setMaxTotal(200);
-            poolingmgr.setDefaultMaxPerRoute(200);
-            clientBuilder.setKeepAliveStrategy((response, context) ->  60 * 1000); // Время жизни соединения
-            clientBuilder.setConnectionManager(poolingmgr);
-            clientBuilder.setDefaultRequestConfig(RequestConfig.custom()
-                .setSocketTimeout(38 * 60 * 1000) // Время ожидания получения данных от сервера после установления соединения
-                .setConnectionRequestTimeout(60 * 1000) // Время ожидания получения соединения из пула
-                .setConnectTimeout(60 * 1000) // Время ожидания установления соединения с сервером
-                .build()
-            );
-        } catch (Exception e) {
-            log.error("configureHttpClient error: {}", e.getMessage());
-        }
-    }
-}
+ // CHANGED: SSLContextBuilder -> SSLContexts.custom()
+            SSLContext sslContext = SSLContexts.custom()
+                .loadTrustMaterial(null, (chain, authType) -> true)
+                .build();
