@@ -78,4 +78,4 @@ org.apache.camel.http.common.HttpOperationFailedException → org.apache.camel.h
 Компонент jetty9 переименован в jetty
 
 
-jtlsWsUri
+"Sending message to "  AND service_name:"rr-generate-service" 
