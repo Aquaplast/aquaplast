@@ -1,4 +1,1 @@
-gl2_processing_error
-Could not apply extractor <L2 (004e2340-4ddf-11ed-bd6e-0242ac120002)> - Unexpected character (':' (code 58)): expected a valid value (number, String, array, object, 'true', 'false' or 'null')
- at [Source: (String)":: Spring Boot ::                (v3.1.2)"; line: 1, column: 2]., Could not apply extractor <L2 (02346f70-4ddf-11ed-bd6e-0242ac120002)> - Unexpected character (':' (code 58)): expected a valid value (number, String, array, object, 'true', 'false' or 'null')
- at [Source: (String)":: Spring Boot ::                (v3.1.2)"; line: 1, column: 2].
+DTD/XSD XML entity [http://camel.apache.org/schema/spring/camel-spring-v3.2.xsd] not found, falling back to remote https resolution
