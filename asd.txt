@@ -1,117 +1,127 @@
-<post uri="/v2/gate_rr_adapter/addApplication">
-				<description>Добавление документа к пакету</description>
-				<param name="Authorization" type="header" required="false" description="Токен авторизации (Bearer)"/>
-				<param name="body" type="body" description="json - запрос подробности см. документацию" required="true"/>
-				<route>
-					<setProperty name="methodName">
-						<simple>addApplication</simple>
-					</setProperty>
-					<to uri="direct:getMethodStartTime"/>
-					<to uri="log:ru.seventech.esb.technoprom.addApplication.v2.start?showAll=true"/>
-					<setProperty name="rosrgatewayToken">
-						<method ref="authService" method="getToken"/>
-					</setProperty>
-					<doTry>
-						<to uri="direct:ru.seventech.esb.technoprom.prepareRequest.v2"/>
-						<unmarshal>
-							<json library="Jackson" unmarshalTypeName="java.util.HashMap"/>
-						</unmarshal>
-						<setProperty name="packageId">
-							<simple>${body.get("packageId")}</simple>
-						</setProperty>
-						<setProperty name="documents">
-							<simple>${body.get("documents")}</simple>
-						</setProperty>
-						<to uri="direct:commonDocumentProcessing"/>
-						<setBody>
-							<groovy>
-								import ru.seventech.esb.technoprom.api.AddApplicationResponse
-								def response = new AddApplicationResponse()
-								response.setPackageId(exchange.properties.packageId)
-								response.setPackageInfo(exchange.properties.packageInfo)
-								response.setRosrInitialState(exchange.properties.sendZipResponse)
-								return response
-							</groovy>
-						</setBody>
-						<marshal>
-							<json library="Jackson"/>
-						</marshal>
-						<setProperty name="logInfo">
-							<simple>${exchangeProperty.packageId}</simple>
-						</setProperty>
-						<to uri="direct:logMethodTiming"/>
-						<to uri="log:ru.seventech.esb.technoprom.addApplication.v2.end?showAll=true"/>
-						<doCatch>
-							<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
-							<to uri="log:ru.seventech.esb.technoprom.addApplication.v2.error?showAll=true"/>
-							<setHeader name="Exchange.HTTP_RESPONSE_CODE">
-								<constant>400</constant>
-							</setHeader>
-							<setBody>
-								<simple>${exception.getResponseBody()}</simple>
-							</setBody>
-						</doCatch>
-					</doTry>
-				</route>
-			</post>
+<rest>
+    <post path="/v2/gate_rr_adapter/addApplication">
+        <description>Добавление документа к пакету</description>
+        <param name="Authorization" type="header" required="false" description="Токен авторизации (Bearer)"/>
+        <param name="body" type="body" description="json - запрос подробности см. документацию" required="true"/>
+        <to uri="direct:addApplicationRoute"/>
+    </post>
 
-			<post uri="/v2/gate_rr_adapter/addApplicationAPIX">
-				<description>Добавление документа к пакету APIX</description>
-				<param name="Authorization" type="header" required="false" description="Токен авторизации (Bearer)"/>
-				<param name="body" type="body" description="json - запрос подробности см. документацию" required="true"/>
-				<route>
-					<setProperty name="methodName">
-						<simple>addApplicationAPIX</simple>
-					</setProperty>
-					<to uri="direct:getMethodStartTime"/>
-					<to uri="log:ru.seventech.esb.technoprom.addApplication.v2.start?showAll=true"/>
-					<setProperty name="rosrgatewayToken">
-						<method ref="authService" method="getToken"/>
-					</setProperty>
-					<doTry>
-						<to uri="direct:ru.seventech.esb.technoprom.prepareRequest.v2"/>
-						<unmarshal>
-							<json library="Jackson" unmarshalTypeName="java.util.HashMap"/>
-						</unmarshal>
-						<setProperty name="packageId">
-							<simple>${body.get("packageId")}</simple>
-						</setProperty>
-						<setProperty name="createApplicationUrl">
-							<simple>{{env:url_createApplication_apix}}</simple>
-						</setProperty>
-						<setProperty name="documents">
-							<simple>${body.get("documents")}</simple>
-						</setProperty>
-						<to uri="direct:performCreateApplicationRequest"/>
-						<to uri="direct:commonDocumentProcessing"/>
-						<setBody>
-							<groovy>
-								import ru.seventech.esb.technoprom.api.AddApplicationAPIXResponse
-								def response = new AddApplicationAPIXResponse()
-								response.setPackageId(exchange.properties.packageId)
-								response.setPackageInfo(exchange.properties.packageInfo)
-								response.setRosrInitialState(exchange.properties.sendZipResponse)
-								return response
-							</groovy>
-						</setBody>
-						<marshal>
-							<json library="Jackson"/>
-						</marshal>
-						<setProperty name="logInfo">
-							<simple>${exchangeProperty.packageId}</simple>
-						</setProperty>
-						<to uri="direct:logMethodTiming"/>
-						<to uri="log:ru.seventech.esb.technoprom.addApplication.v2.end?showAll=true"/>
-						<doCatch>
-							<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
-							<to uri="log:ru.seventech.esb.technoprom.addApplication.v2.error?showAll=true"/>
-							<setHeader name="Exchange.HTTP_RESPONSE_CODE">
-								<constant>400</constant>
-							</setHeader>
-							<setBody>
-								<simple>${exception.getResponseBody()}</simple>
-							</setBody>
-						</doCatch>
-					</doTry>
-				</route>
-			</post>
+    <post path="/v2/gate_rr_adapter/addApplicationAPIX">
+        <description>Добавление документа к пакету APIX</description>
+        <param name="Authorization" type="header" required="false" description="Токен авторизации (Bearer)"/>
+        <param name="body" type="body" description="json - запрос подробности см. документацию" required="true"/>
+        <to uri="direct:addApplicationAPIXRoute"/>
+    </post>
+</rest>
+
+<camelContext ...>
+    <!-- Маршрут для /addApplication -->
+    <route id="direct:addApplicationRoute">
+        <setProperty name="methodName">
+            <simple>addApplication</simple>
+        </setProperty>
+        <to uri="direct:getMethodStartTime"/>
+        <to uri="log:ru.seventech.esb.technoprom.addApplication.v2.start?showAll=true"/>
+        <setProperty name="rosrgatewayToken">
+            <method ref="authService" method="getToken"/>
+        </setProperty>
+        <doTry>
+            <to uri="direct:ru.seventech.esb.technoprom.prepareRequest.v2"/>
+            <unmarshal>
+                <json library="Jackson" unmarshalType="java.util.HashMap"/>
+            </unmarshal>
+            <setProperty name="packageId">
+                <simple>${body.get("packageId")}</simple>
+            </setProperty>
+            <setProperty name="documents">
+                <simple>${body.get("documents")}</simple>
+            </setProperty>
+            <to uri="direct:commonDocumentProcessing"/>
+            <setBody>
+                <groovy>
+                    import ru.seventech.esb.technoprom.api.AddApplicationResponse
+                    def response = new AddApplicationResponse()
+                    response.setPackageId(exchange.properties.packageId)
+                    response.setPackageInfo(exchange.properties.packageInfo)
+                    response.setRosrInitialState(exchange.properties.sendZipResponse)
+                    return response
+                </groovy>
+            </setBody>
+            <marshal>
+                <json library="Jackson"/>
+            </marshal>
+            <setProperty name="logInfo">
+                <simple>${exchangeProperty.packageId}</simple>
+            </setProperty>
+            <to uri="direct:logMethodTiming"/>
+            <to uri="log:ru.seventech.esb.technoprom.addApplication.v2.end?showAll=true"/>
+            <doCatch>
+                <exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
+                <to uri="log:ru.seventech.esb.technoprom.addApplication.v2.error?showAll=true"/>
+                <setHeader name="Exchange.HTTP_RESPONSE_CODE">
+                    <constant>400</constant>
+                </setHeader>
+                <setBody>
+                    <simple>${exception.getResponseBody()}</simple>
+                </setBody>
+            </doCatch>
+        </doTry>
+    </route>
+
+    <!-- Маршрут для /addApplicationAPIX -->
+    <route id="direct:addApplicationAPIXRoute">
+        <setProperty name="methodName">
+            <simple>addApplicationAPIX</simple>
+        </setProperty>
+        <to uri="direct:getMethodStartTime"/>
+        <to uri="log:ru.seventech.esb.technoprom.addApplication.v2.start?showAll=true"/>
+        <setProperty name="rosrgatewayToken">
+            <method ref="authService" method="getToken"/>
+        </setProperty>
+        <doTry>
+            <to uri="direct:ru.seventech.esb.technoprom.prepareRequest.v2"/>
+            <unmarshal>
+                <json library="Jackson" unmarshalType="java.util.HashMap"/>
+            </unmarshal>
+            <setProperty name="packageId">
+                <simple>${body.get("packageId")}</simple>
+            </setProperty>
+            <setProperty name="createApplicationUrl">
+                <simple>{{env:url_createApplication_apix}}</simple>
+            </setProperty>
+            <setProperty name="documents">
+                <simple>${body.get("documents")}</simple>
+            </setProperty>
+            <to uri="direct:performCreateApplicationRequest"/>
+            <to uri="direct:commonDocumentProcessing"/>
+            <setBody>
+                <groovy>
+                    import ru.seventech.esb.technoprom.api.AddApplicationAPIXResponse
+                    def response = new AddApplicationAPIXResponse()
+                    response.setPackageId(exchange.properties.packageId)
+                    response.setPackageInfo(exchange.properties.packageInfo)
+                    response.setRosrInitialState(exchange.properties.sendZipResponse)
+                    return response
+                </groovy>
+            </setBody>
+            <marshal>
+                <json library="Jackson"/>
+            </marshal>
+            <setProperty name="logInfo">
+                <simple>${exchangeProperty.packageId}</simple>
+            </setProperty>
+            <to uri="direct:logMethodTiming"/>
+            <to uri="log:ru.seventech.esb.technoprom.addApplication.v2.end?showAll=true"/>
+            <doCatch>
+                <exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
+                <to uri="log:ru.seventech.esb.technoprom.addApplication.v2.error?showAll=true"/>
+                <setHeader name="Exchange.HTTP_RESPONSE_CODE">
+                    <constant>400</constant>
+                </setHeader>
+                <setBody>
+                    <simple>${exception.getResponseBody()}</simple>
+                </setBody>
+            </doCatch>
+        </doTry>
+    </route>
+</camelContext>
