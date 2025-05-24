@@ -1,85 +1,39 @@
-<rest>
-    <get path="/v2/gate_rr_adapter/agents">
-        <description>GET user agents</description>
-        <param name="Authorization" type="header" required="true"/>
-        <to uri="direct:agentsRoute"/>
-    </get>
+<route id="getMethodStartTime">
+			<description>Запоминает время начала выполнения метода</description>
+			<from uri="direct:getMethodStartTime"/>
+			<setProperty name="methodStartTime">
+				<simple>${date:now:yyyy-MM-dd HH:mm:ss.SSS}</simple>
+			</setProperty>
+			<setProperty name="methodStartTimestamp">
+				<groovy>System.currentTimeMillis()</groovy>
+			</setProperty>
+		</route>
 
-    <post path="/v2/gate_rr_adapter/restart">
-        <description>GET user agents</description>
-        <param name="id" type="query" required="true"/>
-        <param name="Authorization" type="header" required="true"/>
-        <to uri="direct:restartRoute"/>
-    </post>
-</rest>
+		<route id="logMethodTiming">
+			<description>Логирует время выполнения метода</description>
+			<from uri="direct:logMethodTiming"/>
+			<choice>
+				<when>
+					<simple>${exchangeProperty.methodName} == null</simple>
+					<setProperty name="methodName">
+						<simple>anonymous_method</simple>
+					</setProperty>
+				</when>
+			</choice>
 
-<camelContext xmlns="http://camel.apache.org/schema/spring">
-    <!-- Маршрут для /agents -->
-    <route id="direct:agentsRoute">
-        <to uri="log:ru.seventech.esb.technoprom.agents.v2.begin?showAll=false"/>
-        <setProperty name="rosrgatewayToken">
-            <method ref="authService" method="getToken"/>
-        </setProperty>
-        <doTry>
-            <setProperty name="objectUrl">
-                <simple>{{env:url_agents_v2}}</simple>
-            </setProperty>
-            <removeHeaders pattern="*"/>
-            <setHeader name="Authorization">
-                <simple>${exchangeProperty.rosrgatewayToken}</simple>
-            </setHeader>
-            <setHeader name="CamelHttpMethod">
-                <constant>GET</constant>
-            </setHeader>
-            <toD uri="https://${exchangeProperty.objectUrl}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
-            <to uri="log:ru.seventech.esb.technoprom.agents.v2.end?showAll=false"/>
-            <doCatch>
-                <exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
-                <to uri="log:ru.seventech.esb.technoprom.agents.v2.error?showAll=true"/>
-                <setHeader name="Exchange.HTTP_RESPONSE_CODE">
-                    <constant>400</constant>
-                </setHeader>
-                <setBody>
-                    <simple>${exception.getResponseBody()}</simple>
-                </setBody>
-            </doCatch>
-        </doTry>
-    </route>
+			<setProperty name="methodEndTime">
+				<simple>${date:now:yyyy-MM-dd HH:mm:ss.SSS}</simple>
+			</setProperty>
+			<setProperty name="executionTimeMs">
+				<groovy>
+					(System.currentTimeMillis() - exchange.properties.methodStartTimestamp)
+				</groovy>
+			</setProperty>
 
-    <!-- Маршрут для /restart -->
-    <route id="direct:restartRoute">
-        <to uri="log:ru.seventech.esb.technoprom.restart.v2.begin?showAll=false"/>
-        <setProperty name="rosrgatewayToken">
-            <method ref="authService" method="getToken"/>
-        </setProperty>
-        <doTry>
-            <setProperty name="objectUrl">
-                <simple>{{env:url_restart_v2}}</simple>
-            </setProperty>
-            <setProperty name="objectWithParametersUrl">
-                <groovy>
-                    String.format(exchange.properties.objectUrl, exchange.in.headers.id)
-                </groovy>
-            </setProperty>
-            <removeHeaders pattern="*"/>
-            <setHeader name="Authorization">
-                <simple>${exchangeProperty.rosrgatewayToken}</simple>
-            </setHeader>
-            <setHeader name="CamelHttpMethod">
-                <constant>POST</constant>
-            </setHeader>
-            <toD uri="https://${exchangeProperty.objectWithParametersUrl}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
-            <to uri="log:ru.seventech.esb.technoprom.restart.v2.end?showAll=false"/>
-            <doCatch>
-                <exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
-                <to uri="log:ru.seventech.esb.technoprom.restart.v2.error?showAll=true"/>
-                <setHeader name="Exchange.HTTP_RESPONSE_CODE">
-                    <constant>400</constant>
-                </setHeader>
-                <setBody>
-                    <simple>${exception.getResponseBody()}</simple>
-                </setBody>
-            </doCatch>
-        </doTry>
-    </route>
-</camelContext>
+			<process ref="mdcResponseTimeProcessor"/>
+			<log message="[TIMING] Method: ${exchangeProperty.methodName} Start: ${exchangeProperty.methodStartTime}
+			   End: ${exchangeProperty.methodEndTime} Duration: ${exchangeProperty.executionTimeMs} ms
+				 Info: ${exchangeProperty.logInfo}"
+				loggingLevel="INFO"/>
+			<process ref="mdcResponseTimeDeleteProcessor"/>
+		</route>
