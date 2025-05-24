@@ -1,33 +1,39 @@
 <rest>
-    <get path="/v2/gate_rr_adapter/docs"> <!-- Исправлено: path вместо uri -->
+    <get path="/v2/gate_rr_adapter/docs">
         <description>Документация</description>
-        <route id="direct:ru.seventech.esb.router.docs.listener.v2">
-            <removeHeaders pattern="*" excludePattern="X-Forwarded-Uri"/>
-            <setHeader name="CamelHttpResponseCode">
-                <constant>302</constant>
-            </setHeader>
-            <choice>
-                <when>
-                    <simple>${in.header.X-Forwarded-Uri} != null</simple>
-                    <setProperty name="uriPrefix">
-                        <simple>
-                            ${in.header.X-Forwarded-Uri.substring(0, ${in.header.X-Forwarded-Uri.indexOf('private/v2')})}
-                        </simple>
-                    </setProperty>
-                    <setHeader name="Location">
-                        <simple>
-                            ${exchangeProperty.uriPrefix}swagger-ui/?url=/private/v2/gate_rr_adapter/api-docs/gate_rr_adapter
-                        </simple>
-                    </setHeader>
-                </when>
-                <otherwise>
-                    <setHeader name="Location">
-                        <simple>
-                            /swagger-ui/?url=/private/v2/gate_rr_adapter/api-docs/gate_rr_adapter
-                        </simple>
-                    </setHeader>
-                </otherwise>
-            </choice>
-        </route>
+        <!-- Удален тег <route> внутри <get> -->
+        <to uri="direct:ru.seventech.esb.router.docs.listener.v2"/> <!-- Ссылка на существующий маршрут -->
     </get>
 </rest>
+
+<!-- Маршрут должен быть объявлен ОТДЕЛЬНО в camelContext -->
+<camelContext ...>
+    <route id="direct:ru.seventech.esb.router.docs.listener.v2">
+        <removeHeaders pattern="*" excludePattern="X-Forwarded-Uri"/>
+        <setHeader name="CamelHttpResponseCode">
+            <constant>302</constant>
+        </setHeader>
+        <choice>
+            <when>
+                <simple>${in.header.X-Forwarded-Uri} != null</simple>
+                <setProperty name="uriPrefix">
+                    <simple>
+                        ${in.header.X-Forwarded-Uri.substring(0, ${in.header.X-Forwarded-Uri.indexOf('private/v2')})}
+                    </simple>
+                </setProperty>
+                <setHeader name="Location">
+                    <simple>
+                        ${exchangeProperty.uriPrefix}swagger-ui/?url=/private/v2/gate_rr_adapter/api-docs/gate_rr_adapter
+                    </simple>
+                </setHeader>
+            </when>
+            <otherwise>
+                <setHeader name="Location">
+                    <simple>
+                        /swagger-ui/?url=/private/v2/gate_rr_adapter/api-docs/gate_rr_adapter
+                    </simple>
+                </setHeader>
+            </otherwise>
+        </choice>
+    </route>
+</camelContext>
