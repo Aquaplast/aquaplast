@@ -1,78 +1,85 @@
-<get uri="/v2/gate_rr_adapter/agents">
-				<description>GET user agents</description>
-				<param name="Authorization" type="header" required="true" description="Токен авторизации (Bearer)"/>
-				<route>
-					<to uri="log:ru.seventech.esb.technoprom.agents.v2.begin?showAll=false"/>
-					<setProperty name="rosrgatewayToken">
-						<method ref="authService" method="getToken"/>
-					</setProperty>
-					<doTry>
-						<setProperty name="objectUrl">
-							<simple>{{env:url_agents_v2}}</simple>
-						</setProperty>
-						<removeHeaders pattern="*"/>
-						<setHeader name="Authorization">
-							<simple>${exchangeProperty.rosrgatewayToken}</simple>
-						</setHeader>
-						<setHeader name="CamelHttpMethod">
-							<constant>GET</constant>
-						</setHeader>
-						<toD uri="https://${exchangeProperty.objectUrl}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
-						<to uri="log:ru.seventech.esb.technoprom.agents.v2.end?showAll=false"/>
-						<doCatch>
-							<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
-							<to uri="log:ru.seventech.esb.technoprom.agents.v2.error?showAll=true"/>
-							<setHeader name="Exchange.HTTP_RESPONSE_CODE">
-								<constant>400</constant>
-							</setHeader>
-							<setBody>
-								<simple>${exception.getResponseBody()}</simple>
-							</setBody>
-						</doCatch>
-					</doTry>
-				</route>
-			</get>
+<rest>
+    <get path="/v2/gate_rr_adapter/agents">
+        <description>GET user agents</description>
+        <param name="Authorization" type="header" required="true"/>
+        <to uri="direct:agentsRoute"/>
+    </get>
 
-			<post uri="/v2/gate_rr_adapter/restart">
-				<description>GET user agents</description>
-				<param name="id" type="query" required="true" description="Номер пакета"/>
-				<param name="Authorization" type="header" required="true" description="Токен авторизации (Bearer)"/>
-				<route>
-					<to uri="log:ru.seventech.esb.technoprom.restart.v2.begin?showAll=false"/>
-					<setProperty name="rosrgatewayToken">
-						<method ref="authService" method="getToken"/>
-					</setProperty>
-					<doTry>
-						<setProperty name="objectUrl">
-							<simple>{{env:url_restart_v2}}</simple>
-						</setProperty>
-						<setProperty name="objectWithParametersUrl">
-							<groovy>
-								def objectUrlFormatted = sprintf(exchange.properties.objectUrl, [
-								exchange.in.headers.id
-								])
-								return objectUrlFormatted
-							</groovy>
-						</setProperty>
-						<removeHeaders pattern="*"/>
-						<setHeader name="Authorization">
-							<simple>${exchangeProperty.rosrgatewayToken}</simple>
-						</setHeader>
-						<setHeader name="CamelHttpMethod">
-							<constant>POST</constant>
-						</setHeader>
-						<toD uri="https://${exchangeProperty.objectWithParametersUrl}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
-						<to uri="log:ru.seventech.esb.technoprom.restart.v2.end?showAll=false"/>
-						<doCatch>
-							<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
-							<to uri="log:ru.seventech.esb.technoprom.restart.v2.error?showAll=true"/>
-							<setHeader name="Exchange.HTTP_RESPONSE_CODE">
-								<constant>400</constant>
-							</setHeader>
-							<setBody>
-								<simple>${exception.getResponseBody()}</simple>
-							</setBody>
-						</doCatch>
-					</doTry>
-				</route>
-			</post>
+    <post path="/v2/gate_rr_adapter/restart">
+        <description>GET user agents</description>
+        <param name="id" type="query" required="true"/>
+        <param name="Authorization" type="header" required="true"/>
+        <to uri="direct:restartRoute"/>
+    </post>
+</rest>
+
+<camelContext xmlns="http://camel.apache.org/schema/spring">
+    <!-- Маршрут для /agents -->
+    <route id="direct:agentsRoute">
+        <to uri="log:ru.seventech.esb.technoprom.agents.v2.begin?showAll=false"/>
+        <setProperty name="rosrgatewayToken">
+            <method ref="authService" method="getToken"/>
+        </setProperty>
+        <doTry>
+            <setProperty name="objectUrl">
+                <simple>{{env:url_agents_v2}}</simple>
+            </setProperty>
+            <removeHeaders pattern="*"/>
+            <setHeader name="Authorization">
+                <simple>${exchangeProperty.rosrgatewayToken}</simple>
+            </setHeader>
+            <setHeader name="CamelHttpMethod">
+                <constant>GET</constant>
+            </setHeader>
+            <toD uri="https://${exchangeProperty.objectUrl}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
+            <to uri="log:ru.seventech.esb.technoprom.agents.v2.end?showAll=false"/>
+            <doCatch>
+                <exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
+                <to uri="log:ru.seventech.esb.technoprom.agents.v2.error?showAll=true"/>
+                <setHeader name="Exchange.HTTP_RESPONSE_CODE">
+                    <constant>400</constant>
+                </setHeader>
+                <setBody>
+                    <simple>${exception.getResponseBody()}</simple>
+                </setBody>
+            </doCatch>
+        </doTry>
+    </route>
+
+    <!-- Маршрут для /restart -->
+    <route id="direct:restartRoute">
+        <to uri="log:ru.seventech.esb.technoprom.restart.v2.begin?showAll=false"/>
+        <setProperty name="rosrgatewayToken">
+            <method ref="authService" method="getToken"/>
+        </setProperty>
+        <doTry>
+            <setProperty name="objectUrl">
+                <simple>{{env:url_restart_v2}}</simple>
+            </setProperty>
+            <setProperty name="objectWithParametersUrl">
+                <groovy>
+                    String.format(exchange.properties.objectUrl, exchange.in.headers.id)
+                </groovy>
+            </setProperty>
+            <removeHeaders pattern="*"/>
+            <setHeader name="Authorization">
+                <simple>${exchangeProperty.rosrgatewayToken}</simple>
+            </setHeader>
+            <setHeader name="CamelHttpMethod">
+                <constant>POST</constant>
+            </setHeader>
+            <toD uri="https://${exchangeProperty.objectWithParametersUrl}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
+            <to uri="log:ru.seventech.esb.technoprom.restart.v2.end?showAll=false"/>
+            <doCatch>
+                <exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
+                <to uri="log:ru.seventech.esb.technoprom.restart.v2.error?showAll=true"/>
+                <setHeader name="Exchange.HTTP_RESPONSE_CODE">
+                    <constant>400</constant>
+                </setHeader>
+                <setBody>
+                    <simple>${exception.getResponseBody()}</simple>
+                </setBody>
+            </doCatch>
+        </doTry>
+    </route>
+</camelContext>
