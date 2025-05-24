@@ -1,259 +1,112 @@
-<post uri="/v2/gate_rr_adapter/deletePackage">
-				<description>Удаление пакета</description>
-				<param name="Authorization" type="header" required="true" description="Токен авторизации (Bearer)"/>
-				<param name="body" type="body" description="json - запрос подробности см. документацию" required="true"/>
-				<route>
-					<setProperty name="methodName">
-						<simple>deletePackage</simple>
-					</setProperty>
-					<to uri="direct:getMethodStartTime"/>
-					<to uri="log:ru.seventech.esb.technoprom.deletePackage.v2.start?showAll=true"/>
-					<setProperty name="rosrgatewayToken">
-						<method ref="authService" method="getToken"/>
-					</setProperty>
-					<doTry>
-						<to uri="direct:ru.seventech.esb.technoprom.prepareRequest.v2"/>
-						<unmarshal>
-							<json library="Jackson" unmarshalTypeName="java.util.HashMap"/>
-						</unmarshal>
-						<setProperty name="packageId">
-							<simple>${body.get("packageId")}</simple>
-						</setProperty>
-						<setHeader name="CamelHttpMethod">
-							<constant>DELETE</constant>
-						</setHeader>
-						<setHeader name="Authorization">
-							<simple>${exchangeProperty.rosrgatewayToken}</simple>
-						</setHeader>
-						<setBody>
-							<simple>${null}</simple>
-						</setBody>
-						<setProperty name="deletePackageUrl">
-							<simple>{{env:url_deletePackage_v2}}</simple>
-						</setProperty>
-						<setProperty name="deletePackageUrlWithUid">
-							<groovy>
-								def deletePackageUrlFormatted = sprintf(exchange.properties.deletePackageUrl, [exchange.properties.packageId])
-								return deletePackageUrlFormatted
-							</groovy>
-						</setProperty>
-						<toD uri="https://${exchangeProperty.deletePackageUrlWithUid}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
-						<convertBodyTo type="java.lang.String"/>
-						<to uri="log:ru.seventech.esb.technoprom.deletePackage.v2.afterRequest?showAll=true"/>
-						<setBody>
-							<groovy>
-								def response = [removedPackageId: exchange.properties.packageId]
-							</groovy>
-						</setBody>
-						<marshal>
-							<json library="Jackson"/>
-						</marshal>
-						<setProperty name="logInfo">
-							<simple>${exchangeProperty.packageId}</simple>
-						</setProperty>
-						<to uri="direct:logMethodTiming"/>
-						<to uri="log:ru.seventech.esb.technoprom.deletePackage.v2.end?showAll=true"/>
-						<doCatch>
-							<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
-							<to uri="log:ru.seventech.esb.technoprom.deletePackage.v2.error?showAll=true"/>
-							<setHeader name="Exchange.HTTP_RESPONSE_CODE">
-								<constant>400</constant>
-							</setHeader>
-							<setBody>
-								<simple>${exception.getResponseBody()}</simple>
-							</setBody>
-						</doCatch>
-					</doTry>
-				</route>
-			</post>
+<rest>
+    <!-- DELETE /deletePackage -->
+    <post path="/v2/gate_rr_adapter/deletePackage">
+        <description>Удаление пакета</description>
+        <param name="Authorization" type="header" required="true" description="Токен авторизации (Bearer)"/>
+        <param name="body" type="body" description="json - запрос подробности см. документацию" required="true"/>
+        <to uri="direct:deletePackageRoute"/>
+    </post>
 
-			<post uri="/v2/gate_rr_adapter/getArchive">
-				<description>Получить архив пакета</description>
-				<param name="Authorization" type="header" required="true" description="Токен авторизации (Bearer)"/>
-				<param name="body" type="body" description="json - запрос подробности см. документацию" required="true"/>
-				<route>
-					<setProperty name="methodName">
-						<simple>getArchive</simple>
-					</setProperty>
-					<to uri="direct:getMethodStartTime"/>
-					<to uri="log:ru.seventech.esb.technoprom.getArchive.v2.start?showAll=true"/>
-					<setProperty name="rosrgatewayToken">
-						<method ref="authService" method="getToken"/>
-					</setProperty>
-					<doTry>
-						<to uri="direct:ru.seventech.esb.technoprom.prepareRequest.v2"/>
-						<unmarshal>
-							<json library="Jackson" unmarshalTypeName="java.util.HashMap"/>
-						</unmarshal>
-						<setProperty name="packageId">
-							<simple>${body.get("packageId")}</simple>
-						</setProperty>
-						<setProperty name="responseId">
-							<simple>${body.get("responseId")}</simple>
-						</setProperty>
-						<setHeader name="CamelHttpMethod">
-							<constant>GET</constant>
-						</setHeader>
-						<setHeader name="Authorization">
-							<simple>${exchangeProperty.rosrgatewayToken}</simple>
-						</setHeader>
-						<setBody>
-							<simple>${null}</simple>
-						</setBody>
-						<setProperty name="getFilesUrl">
-							<simple>{{env:url_getFiles_v2}}</simple>
-						</setProperty>
-						<setProperty name="getFilesUrlWithUid">
-							<groovy>
-								def getFilesUrlFormatted = sprintf(exchange.properties.getFilesUrl, [
-								exchange.properties.packageId, exchange.properties.responseId
-								])
-								return getFilesUrlFormatted
-							</groovy>
-						</setProperty>
-						<to uri="log:ru.seventech.esb.technoprom.getArchive.v2.beforeGetFiles?showAll=false"/>
-						<toD uri="https://${exchangeProperty.getFilesUrlWithUid}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
-						<to uri="log:ru.seventech.esb.technoprom.getArchive.v2.afterGetFiles?showAll=false"/>
-						<unmarshal>
-							<json library="Jackson" useList="true"
-								  unmarshalTypeName="ru.seventech.esb.technoprom.dto.GetFilesResponseDto"/>
-						</unmarshal>
-						<setProperty name="responseFiles">
-							<simple>${body}</simple>
-						</setProperty>
-						<setProperty name="response">
-							<groovy>
-								new ru.seventech.esb.technoprom.api.GetArchiveResponse()
-							</groovy>
-						</setProperty>
-						<script>
-							<groovy>
-								exchange.properties.response.setPackageId(exchange.properties.packageId)
-							</groovy>
-						</script>
-						<loop>
-							<groovy>
-								exchange.properties.responseFiles.size()
-							</groovy>
-							<setProperty name="file">
-								<groovy>
-									exchange.properties.responseFiles.get(exchange.properties.CamelLoopIndex)
-								</groovy>
-							</setProperty>
+    <!-- GET /getArchive -->
+    <post path="/v2/gate_rr_adapter/getArchive">
+        <description>Получить архив пакета</description>
+        <param name="Authorization" type="header" required="true" description="Токен авторизации (Bearer)"/>
+        <param name="body" type="body" description="json - запрос подробности см. документацию" required="true"/>
+        <to uri="direct:getArchiveRoute"/>
+    </post>
 
-							<setProperty name="end">
-								<groovy>exchange.properties.file.location.lastIndexOf('/')</groovy>
-							</setProperty>
-							<setProperty name="start">
-								<groovy>exchange.properties.file.location.lastIndexOf('/', exchange.properties.end - 1)</groovy>
-							</setProperty>
-							<setProperty name="uuid">
-								<groovy>exchange.properties.file.location.substring(exchange.properties.start + 1, exchange.properties.end)</groovy>
-							</setProperty>
-							<setProperty name="host_bank">
-								<simple>https://{{env:docstore_host_bank}}</simple>
-							</setProperty>
-							<setProperty name="host_dom">
-								<simple>https://{{env:docstore_host_dom}}</simple>
-							</setProperty>
-							<setProperty name="path">
-								<simple>{{env:docstore_path}}</simple>
-							</setProperty>
-							<script>
-								<groovy>
-									def document = new ru.seventech.esb.technoprom.api.GetArchiveResponse.Document(
-									exchange.properties.file.name,
-									exchange.properties.uuid,
-									('1'.equals(exchange.properties.file.consumerId) ? exchange.properties.host_bank : exchange.properties.host_dom) + exchange.properties.path + exchange.properties.uuid
-									)
-									exchange.properties.response.documents.add(document)
-								</groovy>
-							</script>
-						</loop>
-						<setBody>
-							<groovy>
-								exchange.properties.response
-							</groovy>
-						</setBody>
-						<setProperty name="logInfo">
-							<simple>${exchangeProperty.packageId}</simple>
-						</setProperty>
-						<to uri="direct:logMethodTiming"/>
-						<to uri="log:ru.seventech.esb.technoprom.getArchive.v2.end?showAll=false&amp;showBody=true"/>
-						<marshal>
-							<json library="Jackson"/>
-						</marshal>
-						<doCatch>
-							<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
-							<to uri="log:ru.seventech.esb.technoprom.getArchive.v2.error?showAll=true"/>
-							<setHeader name="Exchange.HTTP_RESPONSE_CODE">
-								<constant>400</constant>
-							</setHeader>
-							<setBody>
-								<simple>${exception.getResponseBody()}</simple>
-							</setBody>
-						</doCatch>
-					</doTry>
-				</route>
-			</post>
+    <!-- GET /getDocument -->
+    <get path="/v2/gate_rr_adapter/getDocument">
+        <description>Получение документа</description>
+        <param name="packageId" description="Номер пакета" type="query" required="true"/>
+        <param name="documentId" description="Номер документа" type="query" required="true"/>
+        <param name="Authorization" type="header" required="true" description="Токен авторизации (Bearer)"/>
+        <to uri="direct:getDocumentRoute"/>
+    </get>
 
-			<get uri="/v2/gate_rr_adapter/getDocument">
-				<description>Получение документа</description>
-				<param name="packageId" description="Номер пакета" type="query" required="true"/>
-				<param name="documentId" description="Номер документа" type="query" required="true"/>
-				<param name="Authorization" type="header" required="true" description="Токен авторизации (Bearer)"/>
-				<route>
-					<setProperty name="methodName">
-						<simple>getDocument</simple>
-					</setProperty>
-					<to uri="direct:getMethodStartTime"/>
-					<to uri="log:ru.seventech.esb.technoprom.getImage.v2.begin?showAll=false"/>
-					<setProperty name="rosrgatewayToken">
-						<method ref="authService" method="getToken"/>
-					</setProperty>
-					<setProperty name="getDocumentUrl">
-						<simple>{{env:url_getDocument_v2}}</simple>
-					</setProperty>
-					<setProperty name="getDocumentWithParametersUrl">
-						<groovy>
-							def getDocumentUrlFormatted = sprintf(exchange.properties.getDocumentUrl, [
-							exchange.in.headers.packageId, exchange.in.headers.documentId
-							])
-							return getDocumentUrlFormatted
-						</groovy>
-					</setProperty>
-					<removeHeaders pattern="*"/>
-					<setHeader name="Authorization">
-						<simple>${exchangeProperty.rosrgatewayToken}</simple>
-					</setHeader>
-					<setHeader name="CamelHttpMethod">
-						<constant>GET</constant>
-					</setHeader>
-					<toD uri="https://${exchangeProperty.getDocumentWithParametersUrl}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
-          <setProperty name="logInfo">
-            <simple>${exchange.in.headers.packageId}</simple>
-          </setProperty>
-          <to uri="direct:logMethodTiming"/>
-          <to uri="log:ru.seventech.esb.technoprom.getImage.v2.end?showAll=false"/>
-				</route>
-			</get>
+    <!-- GET /getConsumer -->
+    <get path="/v2/gate_rr_adapter/getConsumer">
+        <description>Получение потребителя</description>
+        <param name="Authorization" type="header" required="true" description="Токен авторизации (Bearer)"/>
+        <to uri="direct:getConsumerRoute"/>
+    </get>
+</rest>
 
-			<get uri="/v2/gate_rr_adapter/getConsumer">
-				<description>Получение потребителя</description>
-				<param name="Authorization" type="header" required="true" description="Токен авторизации (Bearer)"/>
-				<route>
-					<to uri="log:ru.seventech.esb.technoprom.getConsumer.v2.begin?showAll=false"/>
-					<setProperty name="rosrgatewayToken">
-						<method ref="authService" method="getToken"/>
-					</setProperty>
-					<removeHeaders pattern="*"/>
-					<setHeader name="Authorization">
-						<simple>${exchangeProperty.rosrgatewayToken}</simple>
-					</setHeader>
-					<setHeader name="CamelHttpMethod">
-						<constant>GET</constant>
-					</setHeader>
-					<toD uri="https://{{env:url_getConsumer_v2}}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
-					<to uri="log:ru.seventech.esb.technoprom.getConsumer.v2.end?showAll=false"/>
-				</route>
-			</get>
+<camelContext ...>
+    <!-- Маршрут для deletePackage -->
+    <route id="direct:deletePackageRoute">
+        <setProperty name="methodName">
+            <simple>deletePackage</simple>
+        </setProperty>
+        <to uri="direct:getMethodStartTime"/>
+        <to uri="log:ru.seventech.esb.technoprom.deletePackage.v2.start?showAll=true"/>
+        <setProperty name="rosrgatewayToken">
+            <method ref="authService" method="getToken"/>
+        </setProperty>
+        <doTry>
+            <to uri="direct:ru.seventech.esb.technoprom.prepareRequest.v2"/>
+            <unmarshal>
+                <json library="Jackson" unmarshalType="java.util.HashMap"/>
+            </unmarshal>
+            <setProperty name="packageId">
+                <simple>${body.get("packageId")}</simple>
+            </setProperty>
+            <setHeader name="CamelHttpMethod">
+                <constant>DELETE</constant>
+            </setHeader>
+            <setHeader name="Authorization">
+                <simple>${exchangeProperty.rosrgatewayToken}</simple>
+            </setHeader>
+            <setBody>
+                <simple>${null}</simple>
+            </setBody>
+            <setProperty name="deletePackageUrl">
+                <simple>{{env:url_deletePackage_v2}}</simple>
+            </setProperty>
+            <setProperty name="deletePackageUrlWithUid">
+                <groovy>
+                    String.format(exchange.properties.deletePackageUrl, exchange.properties.packageId)
+                </groovy>
+            </setProperty>
+            <toD uri="https://${exchangeProperty.deletePackageUrlWithUid}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
+            <convertBodyTo type="java.lang.String"/>
+            <to uri="log:ru.seventech.esb.technoprom.deletePackage.v2.afterRequest?showAll=true"/>
+            <setBody>
+                <groovy>[removedPackageId: exchange.properties.packageId]</groovy>
+            </setBody>
+            <marshal>
+                <json library="Jackson"/>
+            </marshal>
+            <setProperty name="logInfo">
+                <simple>${exchangeProperty.packageId}</simple>
+            </setProperty>
+            <to uri="direct:logMethodTiming"/>
+            <to uri="log:ru.seventech.esb.technoprom.deletePackage.v2.end?showAll=true"/>
+            <doCatch>
+                <exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
+                <to uri="log:ru.seventech.esb.technoprom.deletePackage.v2.error?showAll=true"/>
+                <setHeader name="Exchange.HTTP_RESPONSE_CODE">
+                    <constant>400</constant>
+                </setHeader>
+                <setBody>
+                    <simple>${exception.getResponseBody()}</simple>
+                </setBody>
+            </doCatch>
+        </doTry>
+    </route>
+
+    <!-- Маршрут для getArchive -->
+    <route id="direct:getArchiveRoute">
+        ... [аналогичные исправления: unmarshalTypeName → unmarshalType, вынос логики]
+    </route>
+
+    <!-- Маршрут для getDocument -->
+    <route id="direct:getDocumentRoute">
+        ... [исправление параметров запроса]
+    </route>
+
+    <!-- Маршрут для getConsumer -->
+    <route id="direct:getConsumerRoute">
+        ... [удаление вложенного route]
+    </route>
+</camelContext>
