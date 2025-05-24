@@ -3,7 +3,7 @@
 	   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	   xsi:schemaLocation="
          http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
-         http://camel.apache.org/schema/spring https://camel.apache.org/schema/spring/camel-spring.xsd">
+         http://camel.apache.org/schema/spring https://camel.apache.org/schema/spring/camel-spring-3.20.5.xsd">
 
 	<bean id="trustAllHttpClientConfigurer" class="ru.seventech.esb.technoprom.config.TrustAllHttpClientConfigurer"/>
 
@@ -24,7 +24,7 @@
 			<redeliveryPolicy maximumRedeliveries="3" redeliveryDelay="5000"/>
 		</onException>
 
-		<restConfiguration contextPath="/private" apiContextPath="api-docs" apiContextListing="true" enableCORS="true">
+		<restConfiguration contextPath="/private" apiContextPath="api-docs" enableCORS="true">
 			<apiProperty key="cors" value="true"/>
 			<apiProperty key="base.path" value="rest"/>
 			<apiProperty key="api.version" value="1.0.0"/>
@@ -34,1033 +34,1036 @@
 		</restConfiguration>
 
 		<rest>
-			<get uri="/v2/gate_rr_adapter/docs">
+			<get path="/v2/gate_rr_adapter/docs">
 				<description>Документация</description>
-				<route id="direct:ru.seventech.esb.router.docs.listener.v2">
-					<removeHeaders pattern="*" excludePattern="X-Forwarded-Uri"/>
-					<setHeader name="CamelHttpResponseCode">
-						<constant>302</constant>
-					</setHeader>
-					<choice>
-						<when>
-							<simple>${in.header.X-Forwarded-Uri} != null</simple>
-							<setProperty name="uriPrefix">
-								<simple>
-									${in.header.X-Forwarded-Uri.substring(0, ${in.header.X-Forwarded-Uri.indexOf('private/v2')})}
-								</simple>
-							</setProperty>
-							<setHeader name="location">
-								<simple>
-									${exchangeProperty.uriPrefix}swagger-ui/?url=/private/v2/gate_rr_adapter/api-docs/gate_rr_adapter
-								</simple>
-							</setHeader>
-						</when>
-						<otherwise>
-							<setHeader name="location">
-								<simple>
-									/swagger-ui/?url=/private/v2/gate_rr_adapter/api-docs/gate_rr_adapter
-								</simple>
-							</setHeader>
-						</otherwise>
-					</choice>
-				</route>
+				<to uri="direct:ru.seventech.esb.router.docs.listener.v2"/>
 			</get>
 
-			<post uri="/v2/gate_rr_adapter/createPackage">
+			<post path="/v2/gate_rr_adapter/createPackage">
 				<description>Создание нового пакета</description>
 				<param name="Authorization" type="header" required="true" description="Токен авторизации (Bearer)"/>
 				<param name="body" type="body" description="json - запрос подробности см. документацию" required="true"/>
-				<route>
-					<setProperty name="methodName">
-						<simple>createPackage</simple>
-					</setProperty>
-					<to uri="direct:getMethodStartTime"/>
-					<to uri="log:ru.seventech.esb.technoprom.createPackage.v2.start?showAll=true"/>
-					<log message="[ZERO-SIGN-LOG] Get 'createPackage' request with body ${body}"/>
-					<setProperty name="rosrgatewayToken">
-						<method ref="authService" method="getToken"/>
-					</setProperty>
-					<doTry>
-						<to uri="direct:ru.seventech.esb.technoprom.prepareRequest.v2"/>
-						<unmarshal>
-							<json library="Jackson" unmarshalTypeName="ru.seventech.esb.technoprom.api.CreatePackageRequest"/>
-						</unmarshal>
-						<setBody>
-							<groovy>
-								def request = new ru.seventech.esb.technoprom.dto.CreatePackageRequestDto()
-								request.setType(exchange.in.body.getPackageType())
-								request.setData(exchange.in.body.getPackageData())
-								request.setOrgId(exchange.in.body.getOrgId())
-								request.setAgentId(exchange.in.body.getAgentId())
-								return request
-							</groovy>
-						</setBody>
-						<setProperty name="initialRequest">
-							<simple>${body}</simple>
-						</setProperty>
-						<!-- Converting organizationData to declarant -->
-						<process ref="organizationDataProcessor"/>
-						<to uri="log:ru.seventech.esb.technoprom.createPackage.v2.beforeRequest?showBody=true"/>
-						<marshal>
-							<json library="Jackson"/>
-						</marshal>
-						<setHeader name="Authorization">
-							<simple>${exchangeProperty.rosrgatewayToken}</simple>
-						</setHeader>
-						<log message="[ZERO-SIGN-LOG] Send request https://{{env:url_createPackage_v2}} with body ${body}"/>
-            <toD uri="https://{{env:url_createPackage_v2}}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
-						<unmarshal>
-							<json library="Jackson" unmarshalTypeName="ru.seventech.esb.technoprom.dto.CreatePackageResponseDto"/>
-						</unmarshal>
-						<setProperty name="createPackageResponse">
-							<simple>${body}</simple>
-						</setProperty>
-						<setProperty name="packageId">
-							<groovy>exchange.in.body.getId()</groovy>
-						</setProperty>
-						<setProperty name="documents">
-							<groovy>
-								exchange.properties.initialRequest.getData().get("declarants")
-							</groovy>
-						</setProperty>
-						<choice>
-							<when>
-								<groovy>
-									exchange.properties.documents != null
-								</groovy>
-								<to uri="direct:ru.seventech.esb.technoprom.saveDocuments.v2"/>
-							</when>
-						</choice>
-						<setProperty name="documents">
-							<groovy>
-								exchange.properties.initialRequest.getData().get("documents")
-							</groovy>
-						</setProperty>
-						<choice>
-							<when>
-								<groovy>
-									exchange.properties.documents != null
-								</groovy>
-								<to uri="direct:ru.seventech.esb.technoprom.saveDocuments.v2"/>
-							</when>
-						</choice>
-						<setProperty name="transfer">
-							<groovy>
-								exchange.properties.initialRequest.getData().get("transfer")
-							</groovy>
-						</setProperty>
-						<choice>
-							<when>
-								<groovy>
-									exchange.properties.transfer != null
-								</groovy>
-								<setProperty name="documents">
-									<groovy>
-										exchange.properties.transfer.get("declarants")
-									</groovy>
-								</setProperty>
-								<choice>
-									<when>
-										<groovy>
-											exchange.properties.documents != null
-										</groovy>
-										<to uri="direct:ru.seventech.esb.technoprom.saveDocuments.v2"/>
-									</when>
-								</choice>
-								<setProperty name="documents">
-									<groovy>
-										exchange.properties.transfer.get("documents")
-									</groovy>
-								</setProperty>
-								<choice>
-									<when>
-										<groovy>
-											exchange.properties.documents != null
-										</groovy>
-										<to uri="direct:ru.seventech.esb.technoprom.saveDocuments.v2"/>
-									</when>
-								</choice>
-							</when>
-						</choice>
-						<setBody>
-							<simple>
-								${exchangeProperty.createPackageResponse}
-							</simple>
-						</setBody>
-
-						<setProperty name="logInfo">
-							<simple>${exchangeProperty.createPackageResponse}</simple>
-						</setProperty>
-						<to uri="direct:logMethodTiming"/>
-
-						<to uri="log:ru.seventech.esb.technoprom.createPackage.v2.end?showAll=false"/>
-						<marshal>
-							<json library="Jackson"/>
-						</marshal>
-						<doCatch>
-							<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
-							<setHeader name="Exchange.HTTP_RESPONSE_CODE">
-								<constant>400</constant>
-							</setHeader>
-							<to uri="log:ru.seventech.esb.technoprom.createPackage.v2.error?showAll=true"/>
-							<setBody>
-								<simple>${exception.getResponseBody()}</simple>
-							</setBody>
-						</doCatch>
-					</doTry>
-				</route>
+				<to uri="direct:ru.seventech.esb.technoprom.createPackage.v2"/>
 			</post>
 
-			<post uri="/v2/gate_rr_adapter/createApplication">
+			<post path="/v2/gate_rr_adapter/createApplication">
 				<description>Генерация XML файлов пакета</description>
 				<param name="Authorization" type="header" required="true" description="Токен авторизации (Bearer)"/>
 				<param name="body" type="body" description="json - запрос подробности см. документацию" required="true"/>
-				<route>
-					<setProperty name="methodName">
-						<simple>createApplication</simple>
-					</setProperty>
-					<to uri="direct:getMethodStartTime"/>
-					<to uri="log:ru.seventech.esb.technoprom.createApplication.v2.start?showAll=true"/>
-					<log message="[ZERO-SIGN-LOG] Get 'createApplication' request with body ${body}"/>
-					<setProperty name="rosrgatewayToken">
-						<method ref="authService" method="getToken"/>
-					</setProperty>
-					<doTry>
-						<to uri="direct:ru.seventech.esb.technoprom.prepareRequest.v2"/>
-						<unmarshal>
-							<json library="Jackson" unmarshalTypeName="java.util.HashMap"/>
-						</unmarshal>
-						<setProperty name="packageId">
-							<simple>${body.get("packageId")}</simple>
-						</setProperty>
-						<setProperty name="createApplicationUrl">
-							<simple>{{env:url_createApplication_v2}}</simple>
-						</setProperty>
-						<to uri="direct:performCreateApplicationRequest"/>
-						<unmarshal>
-							<json useList="true" library="Jackson"
-								unmarshalTypeName="ru.seventech.esb.technoprom.dto.CreateApplicationResponseDto"/>
-						</unmarshal>
-						<setProperty name="createApplicationResponse">
-							<groovy>
-								import ru.seventech.esb.technoprom.api.CreateApplicationResponse
-								def response = new CreateApplicationResponse()
-								response.setPackageId(Long.valueOf(exchange.properties.packageId))
-								response.setDocuments(exchange.in.body)
-								return response
-							</groovy>
-						</setProperty>
-						<setProperty name="responseFiles">
-							<groovy>exchange.properties.createApplicationResponse.documents</groovy>
-						</setProperty>
-						<to uri="log:ru.seventech.esb.technoprom.createApplication.v2.iteratingFiles?showAll=true"/>
-						<loop>
-							<groovy>
-								exchange.properties.responseFiles.size()
-							</groovy>
-							<setProperty name="file">
-								<groovy>exchange.properties.responseFiles.get(exchange.properties.CamelLoopIndex)</groovy>
-							</setProperty>
-							<setProperty name="host_bank">
-								<simple>https://{{env:docstore_host_bank}}</simple>
-							</setProperty>
-							<setProperty name="host_dom">
-								<simple>https://{{env:docstore_host_dom}}</simple>
-							</setProperty>
-							<setProperty name="path">
-								<simple>{{env:docstore_path}}</simple>
-							</setProperty>
-							<choice>
-								<when>
-									<groovy>
-										exchange.properties.file.image != null
-									</groovy>
-									<setProperty name="end">
-										<groovy>exchange.properties.file.image.location.lastIndexOf('/')</groovy>
-									</setProperty>
-									<setProperty name="start">
-										<groovy>exchange.properties.file.image.location.lastIndexOf('/', exchange.properties.end - 1)</groovy>
-									</setProperty>
-									<setProperty name="uuid">
-										<groovy>exchange.properties.file.image.location.substring(exchange.properties.start + 1, exchange.properties.end)</groovy>
-									</setProperty>
-									<script>
-										<groovy>
-											exchange.properties.file.image.setLocation(('1'.equals(exchange.properties.file.consumerId) ? exchange.properties.host_bank : exchange.properties.host_dom) + exchange.properties.path + exchange.properties.uuid)
-										</groovy>
-									</script>
-								</when>
-							</choice>
-							<choice>
-								<when>
-									<groovy>
-										exchange.properties.file.html != null
-									</groovy>
-									<setProperty name="endIndexHtml">
-										<groovy>exchange.properties.file.html.location.lastIndexOf('/')</groovy>
-									</setProperty>
-									<setProperty name="startIndexHtml">
-										<groovy>exchange.properties.file.html.location.lastIndexOf('/', exchange.properties.endIndexHtml - 1)</groovy>
-									</setProperty>
-									<setProperty name="uuidHtml">
-										<groovy>exchange.properties.file.html.location.substring(exchange.properties.startIndexHtml + 1, exchange.properties.endIndexHtml)</groovy>
-									</setProperty>
-									<script>
-										<groovy>
-											exchange.properties.file.html.setLocation(('1'.equals(exchange.properties.file.consumerId) ? exchange.properties.host_bank : exchange.properties.host_dom) + exchange.properties.path + exchange.properties.uuidHtml)
-										</groovy>
-									</script>
-								</when>
-							</choice>
-						</loop>
-						<setBody>
-							<groovy>exchange.properties.createApplicationResponse</groovy>
-						</setBody>
-						<setProperty name="logInfo">
-							<simple>${exchangeProperty.createApplicationResponse}</simple>
-						</setProperty>
-						<to uri="direct:logMethodTiming"/>
-						<to uri="log:ru.seventech.esb.technoprom.createApplication.v2.end?showAll=true"/>
-						<marshal>
-							<json library="Jackson"/>
-						</marshal>
-						<doCatch>
-								<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
-								<setProperty name="httpResponseCode">
-										<groovy>${exception.getStatusCode()}</groovy>
-								</setProperty>
-								<to uri="log:ru.seventech.esb.technoprom.performPostRequest.httpError?showAll=true"/>
-								<setHeader name="Exchange.HTTP_RESPONSE_CODE">
-										<simple>${exchangeProperty.httpResponseCode}</simple>
-								</setHeader>
-								<setBody>
-										<simple>${exception.getResponseBody()}</simple>
-								</setBody>
-								<stop/>
-						</doCatch>
-						<doCatch>
-							<exception>java.net.SocketTimeoutException</exception>
-							<throwException exceptionType="java.net.SocketTimeoutException"/>
-						</doCatch>
-						<doCatch>
-							<exception>java.net.SocketException</exception>
-							<throwException exceptionType="java.net.SocketException"/>
-						</doCatch>
-						<doCatch>
-								<exception>java.lang.Exception</exception>
-								<to uri="log:ru.seventech.esb.technoprom.performPostRequest.generalError?showAll=true"/>
-								<setHeader name="Exchange.HTTP_RESPONSE_CODE">
-										<constant>500</constant>
-								</setHeader>
-								<setBody>
-										<simple>Error processing request: ${exception.message}</simple>
-								</setBody>
-								<stop/>
-						</doCatch>
-					</doTry>
-				</route>
+				<to uri="direct:createApplicationRoute"/>
 			</post>
 
-			<post uri="/v2/gate_rr_adapter/addApplication">
+			<post path="/v2/gate_rr_adapter/addApplication">
 				<description>Добавление документа к пакету</description>
 				<param name="Authorization" type="header" required="false" description="Токен авторизации (Bearer)"/>
 				<param name="body" type="body" description="json - запрос подробности см. документацию" required="true"/>
-				<route>
-					<setProperty name="methodName">
-						<simple>addApplication</simple>
-					</setProperty>
-					<to uri="direct:getMethodStartTime"/>
-					<to uri="log:ru.seventech.esb.technoprom.addApplication.v2.start?showAll=true"/>
-					<setProperty name="rosrgatewayToken">
-						<method ref="authService" method="getToken"/>
-					</setProperty>
-					<doTry>
-						<to uri="direct:ru.seventech.esb.technoprom.prepareRequest.v2"/>
-						<unmarshal>
-							<json library="Jackson" unmarshalTypeName="java.util.HashMap"/>
-						</unmarshal>
-						<setProperty name="packageId">
-							<simple>${body.get("packageId")}</simple>
-						</setProperty>
-						<setProperty name="documents">
-							<simple>${body.get("documents")}</simple>
-						</setProperty>
-						<to uri="direct:commonDocumentProcessing"/>
-						<setBody>
-							<groovy>
-								import ru.seventech.esb.technoprom.api.AddApplicationResponse
-								def response = new AddApplicationResponse()
-								response.setPackageId(exchange.properties.packageId)
-								response.setPackageInfo(exchange.properties.packageInfo)
-								response.setRosrInitialState(exchange.properties.sendZipResponse)
-								return response
-							</groovy>
-						</setBody>
-						<marshal>
-							<json library="Jackson"/>
-						</marshal>
-						<setProperty name="logInfo">
-							<simple>${exchangeProperty.packageId}</simple>
-						</setProperty>
-						<to uri="direct:logMethodTiming"/>
-						<to uri="log:ru.seventech.esb.technoprom.addApplication.v2.end?showAll=true"/>
-						<doCatch>
-							<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
-							<to uri="log:ru.seventech.esb.technoprom.addApplication.v2.error?showAll=true"/>
-							<setHeader name="Exchange.HTTP_RESPONSE_CODE">
-								<constant>400</constant>
-							</setHeader>
-							<setBody>
-								<simple>${exception.getResponseBody()}</simple>
-							</setBody>
-						</doCatch>
-					</doTry>
-				</route>
+				<to uri="direct:addApplicationRoute"/>
 			</post>
 
-			<post uri="/v2/gate_rr_adapter/addApplicationAPIX">
+			<post path="/v2/gate_rr_adapter/addApplicationAPIX">
 				<description>Добавление документа к пакету APIX</description>
 				<param name="Authorization" type="header" required="false" description="Токен авторизации (Bearer)"/>
 				<param name="body" type="body" description="json - запрос подробности см. документацию" required="true"/>
-				<route>
-					<setProperty name="methodName">
-						<simple>addApplicationAPIX</simple>
-					</setProperty>
-					<to uri="direct:getMethodStartTime"/>
-					<to uri="log:ru.seventech.esb.technoprom.addApplication.v2.start?showAll=true"/>
-					<setProperty name="rosrgatewayToken">
-						<method ref="authService" method="getToken"/>
-					</setProperty>
-					<doTry>
-						<to uri="direct:ru.seventech.esb.technoprom.prepareRequest.v2"/>
-						<unmarshal>
-							<json library="Jackson" unmarshalTypeName="java.util.HashMap"/>
-						</unmarshal>
-						<setProperty name="packageId">
-							<simple>${body.get("packageId")}</simple>
-						</setProperty>
-						<setProperty name="createApplicationUrl">
-							<simple>{{env:url_createApplication_apix}}</simple>
-						</setProperty>
-						<setProperty name="documents">
-							<simple>${body.get("documents")}</simple>
-						</setProperty>
-						<to uri="direct:performCreateApplicationRequest"/>
-						<to uri="direct:commonDocumentProcessing"/>
-						<setBody>
-							<groovy>
-								import ru.seventech.esb.technoprom.api.AddApplicationAPIXResponse
-								def response = new AddApplicationAPIXResponse()
-								response.setPackageId(exchange.properties.packageId)
-								response.setPackageInfo(exchange.properties.packageInfo)
-								response.setRosrInitialState(exchange.properties.sendZipResponse)
-								return response
-							</groovy>
-						</setBody>
-						<marshal>
-							<json library="Jackson"/>
-						</marshal>
-						<setProperty name="logInfo">
-							<simple>${exchangeProperty.packageId}</simple>
-						</setProperty>
-						<to uri="direct:logMethodTiming"/>
-						<to uri="log:ru.seventech.esb.technoprom.addApplication.v2.end?showAll=true"/>
-						<doCatch>
-							<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
-							<to uri="log:ru.seventech.esb.technoprom.addApplication.v2.error?showAll=true"/>
-							<setHeader name="Exchange.HTTP_RESPONSE_CODE">
-								<constant>400</constant>
-							</setHeader>
-							<setBody>
-								<simple>${exception.getResponseBody()}</simple>
-							</setBody>
-						</doCatch>
-					</doTry>
-				</route>
+				<to uri="direct:addApplicationAPIXRoute"/>
 			</post>
 
-			<post uri="/v2/gate_rr_adapter/deletePackage">
+			<post path="/v2/gate_rr_adapter/deletePackage">
 				<description>Удаление пакета</description>
 				<param name="Authorization" type="header" required="true" description="Токен авторизации (Bearer)"/>
 				<param name="body" type="body" description="json - запрос подробности см. документацию" required="true"/>
-				<route>
-					<setProperty name="methodName">
-						<simple>deletePackage</simple>
-					</setProperty>
-					<to uri="direct:getMethodStartTime"/>
-					<to uri="log:ru.seventech.esb.technoprom.deletePackage.v2.start?showAll=true"/>
-					<setProperty name="rosrgatewayToken">
-						<method ref="authService" method="getToken"/>
-					</setProperty>
-					<doTry>
-						<to uri="direct:ru.seventech.esb.technoprom.prepareRequest.v2"/>
-						<unmarshal>
-							<json library="Jackson" unmarshalTypeName="java.util.HashMap"/>
-						</unmarshal>
-						<setProperty name="packageId">
-							<simple>${body.get("packageId")}</simple>
-						</setProperty>
-						<setHeader name="CamelHttpMethod">
-							<constant>DELETE</constant>
-						</setHeader>
-						<setHeader name="Authorization">
-							<simple>${exchangeProperty.rosrgatewayToken}</simple>
-						</setHeader>
-						<setBody>
-							<simple>${null}</simple>
-						</setBody>
-						<setProperty name="deletePackageUrl">
-							<simple>{{env:url_deletePackage_v2}}</simple>
-						</setProperty>
-						<setProperty name="deletePackageUrlWithUid">
-							<groovy>
-								def deletePackageUrlFormatted = sprintf(exchange.properties.deletePackageUrl, [exchange.properties.packageId])
-								return deletePackageUrlFormatted
-							</groovy>
-						</setProperty>
-						<toD uri="https://${exchangeProperty.deletePackageUrlWithUid}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
-						<convertBodyTo type="java.lang.String"/>
-						<to uri="log:ru.seventech.esb.technoprom.deletePackage.v2.afterRequest?showAll=true"/>
-						<setBody>
-							<groovy>
-								def response = [removedPackageId: exchange.properties.packageId]
-							</groovy>
-						</setBody>
-						<marshal>
-							<json library="Jackson"/>
-						</marshal>
-						<setProperty name="logInfo">
-							<simple>${exchangeProperty.packageId}</simple>
-						</setProperty>
-						<to uri="direct:logMethodTiming"/>
-						<to uri="log:ru.seventech.esb.technoprom.deletePackage.v2.end?showAll=true"/>
-						<doCatch>
-							<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
-							<to uri="log:ru.seventech.esb.technoprom.deletePackage.v2.error?showAll=true"/>
-							<setHeader name="Exchange.HTTP_RESPONSE_CODE">
-								<constant>400</constant>
-							</setHeader>
-							<setBody>
-								<simple>${exception.getResponseBody()}</simple>
-							</setBody>
-						</doCatch>
-					</doTry>
-				</route>
+				<to uri="direct:deletePackageRoute"/>
 			</post>
 
-			<post uri="/v2/gate_rr_adapter/getArchive">
+			<post path="/v2/gate_rr_adapter/getArchive">
 				<description>Получить архив пакета</description>
 				<param name="Authorization" type="header" required="true" description="Токен авторизации (Bearer)"/>
 				<param name="body" type="body" description="json - запрос подробности см. документацию" required="true"/>
-				<route>
-					<setProperty name="methodName">
-						<simple>getArchive</simple>
-					</setProperty>
-					<to uri="direct:getMethodStartTime"/>
-					<to uri="log:ru.seventech.esb.technoprom.getArchive.v2.start?showAll=true"/>
-					<setProperty name="rosrgatewayToken">
-						<method ref="authService" method="getToken"/>
-					</setProperty>
-					<doTry>
-						<to uri="direct:ru.seventech.esb.technoprom.prepareRequest.v2"/>
-						<unmarshal>
-							<json library="Jackson" unmarshalTypeName="java.util.HashMap"/>
-						</unmarshal>
-						<setProperty name="packageId">
-							<simple>${body.get("packageId")}</simple>
-						</setProperty>
-						<setProperty name="responseId">
-							<simple>${body.get("responseId")}</simple>
-						</setProperty>
-						<setHeader name="CamelHttpMethod">
-							<constant>GET</constant>
-						</setHeader>
-						<setHeader name="Authorization">
-							<simple>${exchangeProperty.rosrgatewayToken}</simple>
-						</setHeader>
-						<setBody>
-							<simple>${null}</simple>
-						</setBody>
-						<setProperty name="getFilesUrl">
-							<simple>{{env:url_getFiles_v2}}</simple>
-						</setProperty>
-						<setProperty name="getFilesUrlWithUid">
-							<groovy>
-								def getFilesUrlFormatted = sprintf(exchange.properties.getFilesUrl, [
-								exchange.properties.packageId, exchange.properties.responseId
-								])
-								return getFilesUrlFormatted
-							</groovy>
-						</setProperty>
-						<to uri="log:ru.seventech.esb.technoprom.getArchive.v2.beforeGetFiles?showAll=false"/>
-						<toD uri="https://${exchangeProperty.getFilesUrlWithUid}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
-						<to uri="log:ru.seventech.esb.technoprom.getArchive.v2.afterGetFiles?showAll=false"/>
-						<unmarshal>
-							<json library="Jackson" useList="true"
-								  unmarshalTypeName="ru.seventech.esb.technoprom.dto.GetFilesResponseDto"/>
-						</unmarshal>
-						<setProperty name="responseFiles">
-							<simple>${body}</simple>
-						</setProperty>
-						<setProperty name="response">
-							<groovy>
-								new ru.seventech.esb.technoprom.api.GetArchiveResponse()
-							</groovy>
-						</setProperty>
-						<script>
-							<groovy>
-								exchange.properties.response.setPackageId(exchange.properties.packageId)
-							</groovy>
-						</script>
-						<loop>
-							<groovy>
-								exchange.properties.responseFiles.size()
-							</groovy>
-							<setProperty name="file">
-								<groovy>
-									exchange.properties.responseFiles.get(exchange.properties.CamelLoopIndex)
-								</groovy>
-							</setProperty>
-
-							<setProperty name="end">
-								<groovy>exchange.properties.file.location.lastIndexOf('/')</groovy>
-							</setProperty>
-							<setProperty name="start">
-								<groovy>exchange.properties.file.location.lastIndexOf('/', exchange.properties.end - 1)</groovy>
-							</setProperty>
-							<setProperty name="uuid">
-								<groovy>exchange.properties.file.location.substring(exchange.properties.start + 1, exchange.properties.end)</groovy>
-							</setProperty>
-							<setProperty name="host_bank">
-								<simple>https://{{env:docstore_host_bank}}</simple>
-							</setProperty>
-							<setProperty name="host_dom">
-								<simple>https://{{env:docstore_host_dom}}</simple>
-							</setProperty>
-							<setProperty name="path">
-								<simple>{{env:docstore_path}}</simple>
-							</setProperty>
-							<script>
-								<groovy>
-									def document = new ru.seventech.esb.technoprom.api.GetArchiveResponse.Document(
-									exchange.properties.file.name,
-									exchange.properties.uuid,
-									('1'.equals(exchange.properties.file.consumerId) ? exchange.properties.host_bank : exchange.properties.host_dom) + exchange.properties.path + exchange.properties.uuid
-									)
-									exchange.properties.response.documents.add(document)
-								</groovy>
-							</script>
-						</loop>
-						<setBody>
-							<groovy>
-								exchange.properties.response
-							</groovy>
-						</setBody>
-						<setProperty name="logInfo">
-							<simple>${exchangeProperty.packageId}</simple>
-						</setProperty>
-						<to uri="direct:logMethodTiming"/>
-						<to uri="log:ru.seventech.esb.technoprom.getArchive.v2.end?showAll=false&amp;showBody=true"/>
-						<marshal>
-							<json library="Jackson"/>
-						</marshal>
-						<doCatch>
-							<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
-							<to uri="log:ru.seventech.esb.technoprom.getArchive.v2.error?showAll=true"/>
-							<setHeader name="Exchange.HTTP_RESPONSE_CODE">
-								<constant>400</constant>
-							</setHeader>
-							<setBody>
-								<simple>${exception.getResponseBody()}</simple>
-							</setBody>
-						</doCatch>
-					</doTry>
-				</route>
+				<to uri="direct:getArchiveRoute"/>
 			</post>
 
-			<get uri="/v2/gate_rr_adapter/getDocument">
+			<get path="/v2/gate_rr_adapter/getDocument">
 				<description>Получение документа</description>
 				<param name="packageId" description="Номер пакета" type="query" required="true"/>
 				<param name="documentId" description="Номер документа" type="query" required="true"/>
 				<param name="Authorization" type="header" required="true" description="Токен авторизации (Bearer)"/>
-				<route>
-					<setProperty name="methodName">
-						<simple>getDocument</simple>
-					</setProperty>
-					<to uri="direct:getMethodStartTime"/>
-					<to uri="log:ru.seventech.esb.technoprom.getImage.v2.begin?showAll=false"/>
-					<setProperty name="rosrgatewayToken">
-						<method ref="authService" method="getToken"/>
-					</setProperty>
-					<setProperty name="getDocumentUrl">
-						<simple>{{env:url_getDocument_v2}}</simple>
-					</setProperty>
-					<setProperty name="getDocumentWithParametersUrl">
-						<groovy>
-							def getDocumentUrlFormatted = sprintf(exchange.properties.getDocumentUrl, [
-							exchange.in.headers.packageId, exchange.in.headers.documentId
-							])
-							return getDocumentUrlFormatted
-						</groovy>
-					</setProperty>
-					<removeHeaders pattern="*"/>
-					<setHeader name="Authorization">
-						<simple>${exchangeProperty.rosrgatewayToken}</simple>
-					</setHeader>
-					<setHeader name="CamelHttpMethod">
-						<constant>GET</constant>
-					</setHeader>
-					<toD uri="https://${exchangeProperty.getDocumentWithParametersUrl}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
-          <setProperty name="logInfo">
-            <simple>${exchange.in.headers.packageId}</simple>
-          </setProperty>
-          <to uri="direct:logMethodTiming"/>
-          <to uri="log:ru.seventech.esb.technoprom.getImage.v2.end?showAll=false"/>
-				</route>
+				<to uri="direct:getDocumentRoute"/>
 			</get>
 
-			<get uri="/v2/gate_rr_adapter/getConsumer">
+			<get path="/v2/gate_rr_adapter/getConsumer">
 				<description>Получение потребителя</description>
 				<param name="Authorization" type="header" required="true" description="Токен авторизации (Bearer)"/>
-				<route>
-					<to uri="log:ru.seventech.esb.technoprom.getConsumer.v2.begin?showAll=false"/>
-					<setProperty name="rosrgatewayToken">
-						<method ref="authService" method="getToken"/>
-					</setProperty>
-					<removeHeaders pattern="*"/>
-					<setHeader name="Authorization">
-						<simple>${exchangeProperty.rosrgatewayToken}</simple>
-					</setHeader>
-					<setHeader name="CamelHttpMethod">
-						<constant>GET</constant>
-					</setHeader>
-					<toD uri="https://{{env:url_getConsumer_v2}}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
-					<to uri="log:ru.seventech.esb.technoprom.getConsumer.v2.end?showAll=false"/>
-				</route>
+				<to uri="direct:getConsumerRoute"/>
 			</get>
 
-			<get uri="/v2/gate_rr_adapter/online/objects">
+			<get path="/v2/gate_rr_adapter/online/objects">
 				<description>GET objects</description>
-				<param name="source" description="source" type="query" required="false"/>
-				<param name="number" description="number" type="query" required="false"/>
-				<param name="region" description="region" type="query" required="false"/>
-				<param name="district" description="district" type="query" required="false"/>
-				<param name="settlement" description="settlement" type="query" required="false"/>
-				<param name="street" description="street" type="query" required="false"/>
-				<param name="house" description="house" type="query" required="false"/>
-				<param name="building" description="building" type="query" required="false"/>
-				<param name="structure" description="structure" type="query" required="false"/>
-				<param name="apartment" description="apartment" type="query" required="false"/>
-				<param name="numberType" description="numberType" type="query" required="false"/>
-				<param name="cacheUse" description="Cached data" type="query" required="false" defaultValue="false"/>
-				<param name="Authorization" type="header" required="true" description="Токен авторизации (Bearer)"/>
-				<route>
-					<to uri="log:ru.seventech.esb.technoprom.online.objects.v2.begin?showAll=false"/>
-					<setProperty name="rosrgatewayToken">
-						<method ref="authService" method="getToken"/>
-					</setProperty>
-					<doTry>
-						<setProperty name="objectsUrl">
-							<simple>{{env:url_objects_v2}}</simple>
-						</setProperty>
-						<setProperty name="objectsWithParametersUrl">
-							<groovy>
-								def objectsUrlFormatted = sprintf(exchange.properties.objectsUrl, [
-								exchange.in.headers.source ? exchange.in.headers.source : '0',
-								exchange.in.headers.number ? exchange.in.headers.number : '',
-								exchange.in.headers.region ? exchange.in.headers.region : '',
-								exchange.in.headers.district ? exchange.in.headers.district : '',
-								exchange.in.headers.settlement ? exchange.in.headers.settlement : '',
-								exchange.in.headers.street ? exchange.in.headers.street : '',
-								exchange.in.headers.house ? exchange.in.headers.house : '',
-								exchange.in.headers.building ? exchange.in.headers.building : '',
-								exchange.in.headers.structure ? exchange.in.headers.structure : '',
-								exchange.in.headers.apartment ? exchange.in.headers.apartment : '',
-								exchange.in.headers.numberType ? exchange.in.headers.numberType : '',
-								exchange.in.headers.cacheUse ? exchange.in.headers.cacheUse : 'false'
-								])
-								return objectsUrlFormatted
-							</groovy>
-						</setProperty>
-						<removeHeaders pattern="*"/>
-						<setHeader name="Authorization">
-							<simple>${exchangeProperty.rosrgatewayToken}</simple>
-						</setHeader>
-						<setHeader name="CamelHttpMethod">
-							<constant>GET</constant>
-						</setHeader>
-						<toD uri="https://${exchangeProperty.objectsWithParametersUrl}&amp;httpClientConfigurer=trustAllHttpClientConfigurer"/>
-						<to uri="log:ru.seventech.esb.technoprom.online.objects.v2.end?showAll=false"/>
-						<doCatch>
-							<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
-							<to uri="log:ru.seventech.esb.technoprom.online.objects.v2.error?showAll=true"/>
-							<setHeader name="Exchange.HTTP_RESPONSE_CODE">
-								<constant>400</constant>
-							</setHeader>
-							<setBody>
-								<simple>${exception.getResponseBody()}</simple>
-							</setBody>
-						</doCatch>
-					</doTry>
-				</route>
+				<param name="source" type="query" required="false"/>
+				<param name="number" type="query" required="false"/>
+				<param name="region" type="query" required="false"/>
+				<param name="district" type="query" required="false"/>
+				<param name="settlement" type="query" required="false"/>
+				<param name="street" type="query" required="false"/>
+				<param name="house" type="query" required="false"/>
+				<param name="building" type="query" required="false"/>
+				<param name="structure" type="query" required="false"/>
+				<param name="apartment" type="query" required="false"/>
+				<param name="numberType" type="query" required="false"/>
+				<param name="cacheUse" type="query" required="false" defaultValue="false"/>
+				<param name="Authorization" type="header" required="true"/>
+				<to uri="direct:onlineObjectsRoute"/>
 			</get>
 
-			<get uri="/v2/gate_rr_adapter/online/regions">
+			<get path="/v2/gate_rr_adapter/online/regions">
 				<description>GET regions</description>
-				<param name="source" description="source" type="query" required="false"/>
-				<param name="cacheUse" description="Cached data" type="query" required="false" defaultValue="false"/>
-				<param name="Authorization" type="header" required="true" description="Токен авторизации (Bearer)"/>
-				<route>
-					<to uri="log:ru.seventech.esb.technoprom.online.regions.v2.begin?showAll=false"/>
-					<setProperty name="rosrgatewayToken">
-						<method ref="authService" method="getToken"/>
-					</setProperty>
-					<doTry>
-						<setProperty name="regionsUrl">
-							<simple>{{env:url_regions_v2}}</simple>
-						</setProperty>
-						<setProperty name="regionsWithParametersUrl">
-							<groovy>
-								def regionsUrlFormatted = sprintf(exchange.properties.regionsUrl, [
-								exchange.in.headers.source ? exchange.in.headers.source : '0',
-								exchange.in.headers.cacheUse ? exchange.in.headers.cacheUse : 'false'
-								])
-								return regionsUrlFormatted
-							</groovy>
-						</setProperty>
-						<removeHeaders pattern="*"/>
-						<setHeader name="Authorization">
-							<simple>${exchangeProperty.rosrgatewayToken}</simple>
-						</setHeader>
-						<setHeader name="CamelHttpMethod">
-							<constant>GET</constant>
-						</setHeader>
-						<toD uri="https://${exchangeProperty.regionsWithParametersUrl}&amp;httpClientConfigurer=trustAllHttpClientConfigurer"/>
-						<to uri="log:ru.seventech.esb.technoprom.online.regions.v2.end?showAll=false"/>
-						<doCatch>
-							<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
-							<to uri="log:ru.seventech.esb.technoprom.online.regions.v2.error?showAll=true"/>
-							<setHeader name="Exchange.HTTP_RESPONSE_CODE">
-								<constant>400</constant>
-							</setHeader>
-							<setBody>
-								<simple>${exception.getResponseBody()}</simple>
-							</setBody>
-						</doCatch>
-					</doTry>
-				</route>
+				<param name="source" type="query" required="false"/>
+				<param name="cacheUse" type="query" required="false" defaultValue="false"/>
+				<param name="Authorization" type="header" required="true"/>
+				<to uri="direct:onlineRegionsRoute"/>
 			</get>
 
-			<get uri="/v2/gate_rr_adapter/online/districts">
+			<get path="/v2/gate_rr_adapter/online/districts">
 				<description>GET districts</description>
-				<param name="source" description="source" type="query" required="false"/>
-				<param name="region" description="region" type="query" required="false"/>
-				<param name="cacheUse" description="Cached data" type="query" required="false" defaultValue="false"/>
-				<param name="Authorization" type="header" required="true" description="Токен авторизации (Bearer)"/>
-				<route>
-					<to uri="log:ru.seventech.esb.technoprom.online.districts.v2.begin?showAll=false"/>
-					<setProperty name="rosrgatewayToken">
-						<method ref="authService" method="getToken"/>
-					</setProperty>
-					<doTry>
-						<setProperty name="districtsUrl">
-							<simple>{{env:url_districts_v2}}</simple>
-						</setProperty>
-						<setProperty name="districtsWithParametersUrl">
-							<groovy>
-								def districtsUrlFormatted = sprintf(exchange.properties.districtsUrl, [
-								exchange.in.headers.source ? exchange.in.headers.source : '0',
-								exchange.in.headers.region ? exchange.in.headers.region : '',
-								exchange.in.headers.cacheUse ? exchange.in.headers.cacheUse : 'false'
-								])
-								return districtsUrlFormatted
-							</groovy>
-						</setProperty>
-						<removeHeaders pattern="*"/>
-						<setHeader name="Authorization">
-							<simple>${exchangeProperty.rosrgatewayToken}</simple>
-						</setHeader>
-						<setHeader name="CamelHttpMethod">
-							<constant>GET</constant>
-						</setHeader>
-						<toD uri="https://${exchangeProperty.districtsWithParametersUrl}&amp;httpClientConfigurer=trustAllHttpClientConfigurer"/>
-						<to uri="log:ru.seventech.esb.technoprom.online.districts.v2.end?showAll=false"/>
-						<doCatch>
-							<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
-							<to uri="log:ru.seventech.esb.technoprom.online.districts.v2.error?showAll=true"/>
-							<setHeader name="Exchange.HTTP_RESPONSE_CODE">
-								<constant>400</constant>
-							</setHeader>
-							<setBody>
-								<simple>${exception.getResponseBody()}</simple>
-							</setBody>
-						</doCatch>
-					</doTry>
-				</route>
+				<param name="source" type="query" required="false"/>
+				<param name="region" type="query" required="false"/>
+				<param name="cacheUse" type="query" required="false" defaultValue="false"/>
+				<param name="Authorization" type="header" required="true"/>
+				<to uri="direct:onlineDistrictsRoute"/>
 			</get>
 
-			<get uri="/v2/gate_rr_adapter/online/object">
+			<get path="/v2/gate_rr_adapter/online/object">
 				<description>GET object</description>
-				<param name="source" description="source" type="query" required="false"/>
-				<param name="objectId" description="objectId" type="query" required="false"/>
-				<param name="cacheUse" description="Cached data" type="query" required="false" defaultValue="false"/>
-				<param name="Authorization" type="header" required="true" description="Токен авторизации (Bearer)"/>
-				<route>
-					<to uri="log:ru.seventech.esb.technoprom.online.object.v2.begin?showAll=false"/>
-					<setProperty name="rosrgatewayToken">
-						<method ref="authService" method="getToken"/>
-					</setProperty>
-					<doTry>
-						<setProperty name="objectUrl">
-							<simple>{{env:url_object_v2}}</simple>
-						</setProperty>
-						<setProperty name="objectWithParametersUrl">
-							<groovy>
-								def objectUrlFormatted = sprintf(exchange.properties.objectUrl, [
-								exchange.in.headers.source ? exchange.in.headers.source : '0',
-								exchange.in.headers.objectId ? exchange.in.headers.objectId : '',
-								exchange.in.headers.cacheUse ? exchange.in.headers.cacheUse : 'false'
-								])
-								return objectUrlFormatted
-							</groovy>
-						</setProperty>
-						<removeHeaders pattern="*"/>
-						<setHeader name="Authorization">
-							<simple>${exchangeProperty.rosrgatewayToken}</simple>
-						</setHeader>
-						<setHeader name="CamelHttpMethod">
-							<constant>GET</constant>
-						</setHeader>
-						<toD uri="https://${exchangeProperty.objectWithParametersUrl}&amp;httpClientConfigurer=trustAllHttpClientConfigurer"/>
-						<to uri="log:ru.seventech.esb.technoprom.online.object.v2.end?showAll=false"/>
-						<doCatch>
-							<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
-							<to uri="log:ru.seventech.esb.technoprom.online.object.v2.error?showAll=true"/>
-							<setHeader name="Exchange.HTTP_RESPONSE_CODE">
-								<constant>400</constant>
-							</setHeader>
-							<setBody>
-								<simple>${exception.getResponseBody()}</simple>
-							</setBody>
-						</doCatch>
-					</doTry>
-				</route>
+				<param name="source" type="query" required="false"/>
+				<param name="objectId" type="query" required="false"/>
+				<param name="cacheUse" type="query" required="false" defaultValue="false"/>
+				<param name="Authorization" type="header" required="true"/>
+				<to uri="direct:onlineObjectRoute"/>
 			</get>
 
-			<get uri="/v2/gate_rr_adapter/orgs">
+			<get path="/v2/gate_rr_adapter/orgs">
 				<description>GET user organizations</description>
-				<param name="Authorization" type="header" required="true" description="Токен авторизации (Bearer)"/>
-				<route>
-					<to uri="log:ru.seventech.esb.technoprom.orgs.v2.begin?showAll=false"/>
-					<setProperty name="rosrgatewayToken">
-						<method ref="authService" method="getToken"/>
-					</setProperty>
-					<doTry>
-						<setProperty name="objectUrl">
-							<simple>{{env:url_orgs_v2}}</simple>
-						</setProperty>
-						<removeHeaders pattern="*"/>
-						<setHeader name="Authorization">
-							<simple>${exchangeProperty.rosrgatewayToken}</simple>
-						</setHeader>
-						<setHeader name="CamelHttpMethod">
-							<constant>GET</constant>
-						</setHeader>
-						<toD uri="https://${exchangeProperty.objectUrl}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
-						<to uri="log:ru.seventech.esb.technoprom.orgs.v2.end?showAll=false"/>
-						<doCatch>
-							<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
-							<to uri="log:ru.seventech.esb.technoprom.orgs.v2.error?showAll=true"/>
-							<setHeader name="Exchange.HTTP_RESPONSE_CODE">
-								<constant>400</constant>
-							</setHeader>
-							<setBody>
-								<simple>${exception.getResponseBody()}</simple>
-							</setBody>
-						</doCatch>
-					</doTry>
-				</route>
+				<param name="Authorization" type="header" required="true"/>
+				<to uri="direct:orgsRoute"/>
 			</get>
 
-			<get uri="/v2/gate_rr_adapter/agents">
+			<get path="/v2/gate_rr_adapter/agents">
 				<description>GET user agents</description>
-				<param name="Authorization" type="header" required="true" description="Токен авторизации (Bearer)"/>
-				<route>
-					<to uri="log:ru.seventech.esb.technoprom.agents.v2.begin?showAll=false"/>
-					<setProperty name="rosrgatewayToken">
-						<method ref="authService" method="getToken"/>
-					</setProperty>
-					<doTry>
-						<setProperty name="objectUrl">
-							<simple>{{env:url_agents_v2}}</simple>
-						</setProperty>
-						<removeHeaders pattern="*"/>
-						<setHeader name="Authorization">
-							<simple>${exchangeProperty.rosrgatewayToken}</simple>
-						</setHeader>
-						<setHeader name="CamelHttpMethod">
-							<constant>GET</constant>
-						</setHeader>
-						<toD uri="https://${exchangeProperty.objectUrl}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
-						<to uri="log:ru.seventech.esb.technoprom.agents.v2.end?showAll=false"/>
-						<doCatch>
-							<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
-							<to uri="log:ru.seventech.esb.technoprom.agents.v2.error?showAll=true"/>
-							<setHeader name="Exchange.HTTP_RESPONSE_CODE">
-								<constant>400</constant>
-							</setHeader>
-							<setBody>
-								<simple>${exception.getResponseBody()}</simple>
-							</setBody>
-						</doCatch>
-					</doTry>
-				</route>
+				<param name="Authorization" type="header" required="true"/>
+				<to uri="direct:agentsRoute"/>
 			</get>
 
-			<post uri="/v2/gate_rr_adapter/restart">
+			<post path="/v2/gate_rr_adapter/restart">
 				<description>GET user agents</description>
-				<param name="id" type="query" required="true" description="Номер пакета"/>
-				<param name="Authorization" type="header" required="true" description="Токен авторизации (Bearer)"/>
-				<route>
-					<to uri="log:ru.seventech.esb.technoprom.restart.v2.begin?showAll=false"/>
-					<setProperty name="rosrgatewayToken">
-						<method ref="authService" method="getToken"/>
+				<param name="id" type="query" required="true"/>
+				<param name="Authorization" type="header" required="true"/>
+				<to uri="direct:restartRoute"/>
+			</post>
+
+		</rest>
+
+		<route id="direct:ru.seventech.esb.router.docs.listener.v2">
+			<removeHeaders pattern="*" excludePattern="X-Forwarded-Uri"/>
+			<setHeader name="CamelHttpResponseCode">
+				<constant>302</constant>
+			</setHeader>
+			<choice>
+				<when>
+					<simple>${in.header.X-Forwarded-Uri} != null</simple>
+					<setProperty name="uriPrefix">
+						<simple>
+							${in.header.X-Forwarded-Uri.substring(0, ${in.header.X-Forwarded-Uri.indexOf('private/v2')})}
+						</simple>
 					</setProperty>
-					<doTry>
-						<setProperty name="objectUrl">
-							<simple>{{env:url_restart_v2}}</simple>
-						</setProperty>
-						<setProperty name="objectWithParametersUrl">
+					<setHeader name="Location">
+						<simple>
+							${exchangeProperty.uriPrefix}swagger-ui/?url=/private/v2/gate_rr_adapter/api-docs/gate_rr_adapter
+						</simple>
+					</setHeader>
+				</when>
+				<otherwise>
+					<setHeader name="Location">
+						<simple>
+							/swagger-ui/?url=/private/v2/gate_rr_adapter/api-docs/gate_rr_adapter
+						</simple>
+					</setHeader>
+				</otherwise>
+			</choice>
+		</route>
+
+		<route id="direct:ru.seventech.esb.technoprom.createPackage.v2">
+			<setProperty name="methodName">
+				<simple>createPackage</simple>
+			</setProperty>
+			<to uri="direct:getMethodStartTime"/>
+			<to uri="log:ru.seventech.esb.technoprom.createPackage.v2.start?showAll=true"/>
+			<log message="[ZERO-SIGN-LOG] Get 'createPackage' request with body ${body}"/>
+			<setProperty name="rosrgatewayToken">
+				<method ref="authService" method="getToken"/>
+			</setProperty>
+			<doTry>
+				<to uri="direct:ru.seventech.esb.technoprom.prepareRequest.v2"/>
+				<unmarshal>
+					<json library="Jackson" unmarshalType="ru.seventech.esb.technoprom.api.CreatePackageRequest"/>
+				</unmarshal>
+				<setBody>
+					<groovy>
+						def request = new ru.seventech.esb.technoprom.dto.CreatePackageRequestDto()
+						request.setType(exchange.in.body.getPackageType())
+						request.setData(exchange.in.body.getPackageData())
+						request.setOrgId(exchange.in.body.getOrgId())
+						request.setAgentId(exchange.in.body.getAgentId())
+						return request
+					</groovy>
+				</setBody>
+				<setProperty name="initialRequest">
+					<simple>${body}</simple>
+				</setProperty>
+				<process ref="organizationDataProcessor"/>
+				<to uri="log:ru.seventech.esb.technoprom.createPackage.v2.beforeRequest?showBody=true"/>
+				<marshal>
+					<json library="Jackson"/>
+				</marshal>
+				<setHeader name="Authorization">
+					<simple>${exchangeProperty.rosrgatewayToken}</simple>
+				</setHeader>
+				<log message="[ZERO-SIGN-LOG] Send request https://{{env:url_createPackage_v2}} with body ${body}"/>
+				<toD uri="https://{{env:url_createPackage_v2}}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
+				<unmarshal>
+					<json library="Jackson" unmarshalType="ru.seventech.esb.technoprom.dto.CreatePackageResponseDto"/>
+				</unmarshal>
+				<setProperty name="createPackageResponse">
+					<simple>${body}</simple>
+				</setProperty>
+				<setProperty name="packageId">
+					<groovy>exchange.in.body.getId()</groovy>
+				</setProperty>
+				<setProperty name="documents">
+					<groovy>
+						exchange.properties.initialRequest.getData().get("declarants")
+					</groovy>
+				</setProperty>
+				<choice>
+					<when>
+						<groovy>
+							exchange.properties.documents != null
+						</groovy>
+						<to uri="direct:ru.seventech.esb.technoprom.saveDocuments.v2"/>
+					</when>
+				</choice>
+				<setProperty name="documents">
+					<groovy>
+						exchange.properties.initialRequest.getData().get("documents")
+					</groovy>
+				</setProperty>
+				<choice>
+					<when>
+						<groovy>
+							exchange.properties.documents != null
+						</groovy>
+						<to uri="direct:ru.seventech.esb.technoprom.saveDocuments.v2"/>
+					</when>
+				</choice>
+				<setProperty name="transfer">
+					<groovy>
+						exchange.properties.initialRequest.getData().get("transfer")
+					</groovy>
+				</setProperty>
+				<choice>
+					<when>
+						<groovy>
+							exchange.properties.transfer != null
+						</groovy>
+						<setProperty name="documents">
 							<groovy>
-								def objectUrlFormatted = sprintf(exchange.properties.objectUrl, [
-								exchange.in.headers.id
-								])
-								return objectUrlFormatted
+								exchange.properties.transfer.get("declarants")
 							</groovy>
 						</setProperty>
-						<removeHeaders pattern="*"/>
-						<setHeader name="Authorization">
-							<simple>${exchangeProperty.rosrgatewayToken}</simple>
-						</setHeader>
-						<setHeader name="CamelHttpMethod">
-							<constant>POST</constant>
-						</setHeader>
-						<toD uri="https://${exchangeProperty.objectWithParametersUrl}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
-						<to uri="log:ru.seventech.esb.technoprom.restart.v2.end?showAll=false"/>
-						<doCatch>
-							<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
-							<to uri="log:ru.seventech.esb.technoprom.restart.v2.error?showAll=true"/>
-							<setHeader name="Exchange.HTTP_RESPONSE_CODE">
-								<constant>400</constant>
-							</setHeader>
-							<setBody>
-								<simple>${exception.getResponseBody()}</simple>
-							</setBody>
-						</doCatch>
-					</doTry>
-				</route>
-			</post>
-		</rest>
+						<choice>
+							<when>
+								<groovy>
+									exchange.properties.documents != null
+								</groovy>
+								<to uri="direct:ru.seventech.esb.technoprom.saveDocuments.v2"/>
+							</when>
+						</choice>
+						<setProperty name="documents">
+							<groovy>
+								exchange.properties.transfer.get("documents")
+							</groovy>
+						</setProperty>
+						<choice>
+							<when>
+								<groovy>
+									exchange.properties.documents != null
+								</groovy>
+								<to uri="direct:ru.seventech.esb.technoprom.saveDocuments.v2"/>
+							</when>
+						</choice>
+					</when>
+				</choice>
+				<setBody>
+					<simple>${exchangeProperty.createPackageResponse}</simple>
+				</setBody>
+				<setProperty name="logInfo">
+					<simple>${exchangeProperty.createPackageResponse}</simple>
+				</setProperty>
+				<to uri="direct:logMethodTiming"/>
+				<to uri="log:ru.seventech.esb.technoprom.createPackage.v2.end?showAll=false"/>
+				<marshal>
+					<json library="Jackson"/>
+				</marshal>
+				<doCatch>
+					<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
+					<setHeader name="Exchange.HTTP_RESPONSE_CODE">
+						<constant>400</constant>
+					</setHeader>
+					<to uri="log:ru.seventech.esb.technoprom.createPackage.v2.error?showAll=true"/>
+					<setBody>
+						<simple>${exception.getResponseBody()}</simple>
+					</setBody>
+				</doCatch>
+			</doTry>
+		</route>
+
+		<route id="direct:createApplicationRoute">
+			<setProperty name="methodName">
+				<simple>createApplication</simple>
+			</setProperty>
+			<to uri="direct:getMethodStartTime"/>
+			<to uri="log:ru.seventech.esb.technoprom.createApplication.v2.start?showAll=true"/>
+			<log message="[ZERO-SIGN-LOG] Get 'createApplication' request with body ${body}"/>
+			<setProperty name="rosrgatewayToken">
+				<method ref="authService" method="getToken"/>
+			</setProperty>
+			<doTry>
+				<to uri="direct:ru.seventech.esb.technoprom.prepareRequest.v2"/>
+				<unmarshal>
+					<json library="Jackson" unmarshalType="java.util.HashMap"/>
+				</unmarshal>
+				<setProperty name="packageId">
+					<simple>${body.get("packageId")}</simple>
+				</setProperty>
+				<setProperty name="createApplicationUrl">
+					<simple>{{env:url_createApplication_v2}}</simple>
+				</setProperty>
+				<to uri="direct:performCreateApplicationRequest"/>
+				<unmarshal>
+					<json useList="true" library="Jackson" unmarshalType="ru.seventech.esb.technoprom.dto.CreateApplicationResponseDto"/>
+				</unmarshal>
+				<setProperty name="createApplicationResponse">
+					<groovy>
+						import ru.seventech.esb.technoprom.api.CreateApplicationResponse
+						def response = new CreateApplicationResponse()
+						response.setPackageId(Long.valueOf(exchange.properties.packageId))
+						response.setDocuments(exchange.in.body)
+						return response
+					</groovy>
+				</setProperty>
+				<setProperty name="responseFiles">
+					<groovy>exchange.properties.createApplicationResponse.documents</groovy>
+				</setProperty>
+				<to uri="log:ru.seventech.esb.technoprom.createApplication.v2.iteratingFiles?showAll=true"/>
+				<loop>
+					<groovy>
+						exchange.properties.responseFiles.size()
+					</groovy>
+					<setProperty name="file">
+						<groovy>exchange.properties.responseFiles.get(exchange.properties.CamelLoopIndex)</groovy>
+					</setProperty>
+					<setProperty name="host_bank">
+						<simple>https://{{env:docstore_host_bank}}</simple>
+					</setProperty>
+					<setProperty name="host_dom">
+						<simple>https://{{env:docstore_host_dom}}</simple>
+					</setProperty>
+					<setProperty name="path">
+						<simple>{{env:docstore_path}}</simple>
+					</setProperty>
+					<choice>
+						<when>
+							<groovy>
+								exchange.properties.file.image != null
+							</groovy>
+							<setProperty name="end">
+								<groovy>exchange.properties.file.image.location.lastIndexOf('/')</groovy>
+							</setProperty>
+							<setProperty name="start">
+								<groovy>exchange.properties.file.image.location.lastIndexOf('/', exchange.properties.end - 1)</groovy>
+							</setProperty>
+							<setProperty name="uuid">
+								<groovy>exchange.properties.file.image.location.substring(exchange.properties.start + 1, exchange.properties.end)</groovy>
+							</setProperty>
+							<script>
+								<groovy>
+									exchange.properties.file.image.setLocation(('1'.equals(exchange.properties.file.consumerId) ? exchange.properties.host_bank : exchange.properties.host_dom) + exchange.properties.path + exchange.properties.uuid)
+								</groovy>
+							</script>
+						</when>
+					</choice>
+					<choice>
+						<when>
+							<groovy>
+								exchange.properties.file.html != null
+							</groovy>
+							<setProperty name="endIndexHtml">
+								<groovy>exchange.properties.file.html.location.lastIndexOf('/')</groovy>
+							</setProperty>
+							<setProperty name="startIndexHtml">
+								<groovy>exchange.properties.file.html.location.lastIndexOf('/', exchange.properties.endIndexHtml - 1)</groovy>
+							</setProperty>
+							<setProperty name="uuidHtml">
+								<groovy>exchange.properties.file.html.location.substring(exchange.properties.startIndexHtml + 1, exchange.properties.endIndexHtml)</groovy>
+							</setProperty>
+							<script>
+								<groovy>
+									exchange.properties.file.html.setLocation(('1'.equals(exchange.properties.file.consumerId) ? exchange.properties.host_bank : exchange.properties.host_dom) + exchange.properties.path + exchange.properties.uuidHtml)
+								</groovy>
+							</script>
+						</when>
+					</choice>
+				</loop>
+				<setBody>
+					<groovy>exchange.properties.createApplicationResponse</groovy>
+				</setBody>
+				<setProperty name="logInfo">
+					<simple>${exchangeProperty.createApplicationResponse}</simple>
+				</setProperty>
+				<to uri="direct:logMethodTiming"/>
+				<to uri="log:ru.seventech.esb.technoprom.createApplication.v2.end?showAll=true"/>
+				<marshal>
+					<json library="Jackson"/>
+				</marshal>
+				<doCatch>
+					<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
+					<setProperty name="httpResponseCode">
+						<groovy>${exception.getStatusCode()}</groovy>
+					</setProperty>
+					<to uri="log:ru.seventech.esb.technoprom.performPostRequest.httpError?showAll=true"/>
+					<setHeader name="Exchange.HTTP_RESPONSE_CODE">
+						<simple>${exchangeProperty.httpResponseCode}</simple>
+					</setHeader>
+					<setBody>
+						<simple>${exception.getResponseBody()}</simple>
+					</setBody>
+					<stop/>
+				</doCatch>
+				<doCatch>
+					<exception>java.net.SocketTimeoutException</exception>
+					<throwException exceptionType="java.net.SocketTimeoutException"/>
+				</doCatch>
+				<doCatch>
+					<exception>java.net.SocketException</exception>
+					<throwException exceptionType="java.net.SocketException"/>
+				</doCatch>
+				<doCatch>
+					<exception>java.lang.Exception</exception>
+					<to uri="log:ru.seventech.esb.technoprom.performPostRequest.generalError?showAll=true"/>
+					<setHeader name="Exchange.HTTP_RESPONSE_CODE">
+						<constant>500</constant>
+					</setHeader>
+					<setBody>
+						<simple>Error processing request: ${exception.message}</simple>
+					</setBody>
+					<stop/>
+				</doCatch>
+			</doTry>
+		</route>
+
+		<route id="direct:addApplicationRoute">
+			<setProperty name="methodName">
+				<simple>addApplication</simple>
+			</setProperty>
+			<to uri="direct:getMethodStartTime"/>
+			<to uri="log:ru.seventech.esb.technoprom.addApplication.v2.start?showAll=true"/>
+			<setProperty name="rosrgatewayToken">
+				<method ref="authService" method="getToken"/>
+			</setProperty>
+			<doTry>
+				<to uri="direct:ru.seventech.esb.technoprom.prepareRequest.v2"/>
+				<unmarshal>
+					<json library="Jackson" unmarshalType="java.util.HashMap"/>
+				</unmarshal>
+				<setProperty name="packageId">
+					<simple>${body.get("packageId")}</simple>
+				</setProperty>
+				<setProperty name="documents">
+					<simple>${body.get("documents")}</simple>
+				</setProperty>
+				<to uri="direct:commonDocumentProcessing"/>
+				<setBody>
+					<groovy>
+						import ru.seventech.esb.technoprom.api.AddApplicationResponse
+						def response = new AddApplicationResponse()
+						response.setPackageId(exchange.properties.packageId)
+						response.setPackageInfo(exchange.properties.packageInfo)
+						response.setRosrInitialState(exchange.properties.sendZipResponse)
+						return response
+					</groovy>
+				</setBody>
+				<marshal>
+					<json library="Jackson"/>
+				</marshal>
+				<setProperty name="logInfo">
+					<simple>${exchangeProperty.packageId}</simple>
+				</setProperty>
+				<to uri="direct:logMethodTiming"/>
+				<to uri="log:ru.seventech.esb.technoprom.addApplication.v2.end?showAll=true"/>
+				<doCatch>
+					<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
+					<to uri="log:ru.seventech.esb.technoprom.addApplication.v2.error?showAll=true"/>
+					<setHeader name="Exchange.HTTP_RESPONSE_CODE">
+						<constant>400</constant>
+					</setHeader>
+					<setBody>
+						<simple>${exception.getResponseBody()}</simple>
+					</setBody>
+				</doCatch>
+			</doTry>
+		</route>
+
+		<route id="direct:addApplicationAPIXRoute">
+			<setProperty name="methodName">
+				<simple>addApplicationAPIX</simple>
+			</setProperty>
+			<to uri="direct:getMethodStartTime"/>
+			<to uri="log:ru.seventech.esb.technoprom.addApplication.v2.start?showAll=true"/>
+			<setProperty name="rosrgatewayToken">
+				<method ref="authService" method="getToken"/>
+			</setProperty>
+			<doTry>
+				<to uri="direct:ru.seventech.esb.technoprom.prepareRequest.v2"/>
+				<unmarshal>
+					<json library="Jackson" unmarshalType="java.util.HashMap"/>
+				</unmarshal>
+				<setProperty name="packageId">
+					<simple>${body.get("packageId")}</simple>
+				</setProperty>
+				<setProperty name="createApplicationUrl">
+					<simple>{{env:url_createApplication_apix}}</simple>
+				</setProperty>
+				<setProperty name="documents">
+					<simple>${body.get("documents")}</simple>
+				</setProperty>
+				<to uri="direct:performCreateApplicationRequest"/>
+				<to uri="direct:commonDocumentProcessing"/>
+				<setBody>
+					<groovy>
+						import ru.seventech.esb.technoprom.api.AddApplicationAPIXResponse
+						def response = new AddApplicationAPIXResponse()
+						response.setPackageId(exchange.properties.packageId)
+						response.setPackageInfo(exchange.properties.packageInfo)
+						response.setRosrInitialState(exchange.properties.sendZipResponse)
+						return response
+					</groovy>
+				</setBody>
+				<marshal>
+					<json library="Jackson"/>
+				</marshal>
+				<setProperty name="logInfo">
+					<simple>${exchangeProperty.packageId}</simple>
+				</setProperty>
+				<to uri="direct:logMethodTiming"/>
+				<to uri="log:ru.seventech.esb.technoprom.addApplication.v2.end?showAll=true"/>
+				<doCatch>
+					<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
+					<to uri="log:ru.seventech.esb.technoprom.addApplication.v2.error?showAll=true"/>
+					<setHeader name="Exchange.HTTP_RESPONSE_CODE">
+						<constant>400</constant>
+					</setHeader>
+					<setBody>
+						<simple>${exception.getResponseBody()}</simple>
+					</setBody>
+				</doCatch>
+			</doTry>
+		</route>
+
+		<route id="direct:deletePackageRoute">
+			<setProperty name="methodName">
+				<simple>deletePackage</simple>
+			</setProperty>
+			<to uri="direct:getMethodStartTime"/>
+			<to uri="log:ru.seventech.esb.technoprom.deletePackage.v2.start?showAll=true"/>
+			<setProperty name="rosrgatewayToken">
+				<method ref="authService" method="getToken"/>
+			</setProperty>
+			<doTry>
+				<to uri="direct:ru.seventech.esb.technoprom.prepareRequest.v2"/>
+				<unmarshal>
+					<json library="Jackson" unmarshalType="java.util.HashMap"/>
+				</unmarshal>
+				<setProperty name="packageId">
+					<simple>${body.get("packageId")}</simple>
+				</setProperty>
+				<setHeader name="CamelHttpMethod">
+					<constant>DELETE</constant>
+				</setHeader>
+				<setHeader name="Authorization">
+					<simple>${exchangeProperty.rosrgatewayToken}</simple>
+				</setHeader>
+				<setBody>
+					<simple>${null}</simple>
+				</setBody>
+				<setProperty name="deletePackageUrl">
+					<simple>{{env:url_deletePackage_v2}}</simple>
+				</setProperty>
+				<setProperty name="deletePackageUrlWithUid">
+					<groovy>
+						String.format(exchange.properties.deletePackageUrl, exchange.properties.packageId)
+					</groovy>
+				</setProperty>
+				<toD uri="https://${exchangeProperty.deletePackageUrlWithUid}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
+				<convertBodyTo type="java.lang.String"/>
+				<to uri="log:ru.seventech.esb.technoprom.deletePackage.v2.afterRequest?showAll=true"/>
+				<setBody>
+					<groovy>[removedPackageId: exchange.properties.packageId]</groovy>
+				</setBody>
+				<marshal>
+					<json library="Jackson"/>
+				</marshal>
+				<setProperty name="logInfo">
+					<simple>${exchangeProperty.packageId}</simple>
+				</setProperty>
+				<to uri="direct:logMethodTiming"/>
+				<to uri="log:ru.seventech.esb.technoprom.deletePackage.v2.end?showAll=true"/>
+				<doCatch>
+					<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
+					<to uri="log:ru.seventech.esb.technoprom.deletePackage.v2.error?showAll=true"/>
+					<setHeader name="Exchange.HTTP_RESPONSE_CODE">
+						<constant>400</constant>
+					</setHeader>
+					<setBody>
+						<simple>${exception.getResponseBody()}</simple>
+					</setBody>
+				</doCatch>
+			</doTry>
+		</route>
+
+		<route id="direct:getArchiveRoute">
+			<setProperty name="methodName">
+				<simple>getArchive</simple>
+			</setProperty>
+			<to uri="direct:getMethodStartTime"/>
+			<to uri="log:ru.seventech.esb.technoprom.getArchive.v2.start?showAll=true"/>
+			<setProperty name="rosrgatewayToken">
+				<method ref="authService" method="getToken"/>
+			</setProperty>
+			<doTry>
+				<to uri="direct:ru.seventech.esb.technoprom.prepareRequest.v2"/>
+				<unmarshal>
+					<json library="Jackson" unmarshalType="java.util.HashMap"/>
+				</unmarshal>
+				<setProperty name="packageId">
+					<simple>${body.get("packageId")}</simple>
+				</setProperty>
+				<setProperty name="responseId">
+					<simple>${body.get("responseId")}</simple>
+				</setProperty>
+				<setHeader name="CamelHttpMethod">
+					<constant>GET</constant>
+				</setHeader>
+				<setHeader name="Authorization">
+					<simple>${exchangeProperty.rosrgatewayToken}</simple>
+				</setHeader>
+				<setBody>
+					<simple>${null}</simple>
+				</setBody>
+				<setProperty name="getFilesUrl">
+					<simple>{{env:url_getFiles_v2}}</simple>
+				</setProperty>
+				<setProperty name="getFilesUrlWithUid">
+					<groovy>
+						String.format(exchange.properties.getFilesUrl, exchange.properties.packageId, exchange.properties.responseId)
+					</groovy>
+				</setProperty>
+				<to uri="log:ru.seventech.esb.technoprom.getArchive.v2.beforeGetFiles?showAll=false"/>
+				<toD uri="https://${exchangeProperty.getFilesUrlWithUid}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
+				<to uri="log:ru.seventech.esb.technoprom.getArchive.v2.afterGetFiles?showAll=false"/>
+				<unmarshal>
+					<json library="Jackson" useList="true" unmarshalType="ru.seventech.esb.technoprom.dto.GetFilesResponseDto"/>
+				</unmarshal>
+				<setProperty name="responseFiles">
+					<simple>${body}</simple>
+				</setProperty>
+				<setProperty name="response">
+					<groovy>new ru.seventech.esb.technoprom.api.GetArchiveResponse()</groovy>
+				</setProperty>
+				<script>
+					<groovy>exchange.properties.response.setPackageId(exchange.properties.packageId)</groovy>
+				</script>
+				<loop>
+					<groovy>exchange.properties.responseFiles.size()</groovy>
+					<setProperty name="file">
+						<groovy>exchange.properties.responseFiles.get(exchange.properties.CamelLoopIndex)</groovy>
+					</setProperty>
+					<setProperty name="end">
+						<groovy>exchange.properties.file.location.lastIndexOf('/')</groovy>
+					</setProperty>
+					<setProperty name="start">
+						<groovy>exchange.properties.file.location.lastIndexOf('/', exchange.properties.end - 1)</groovy>
+					</setProperty>
+					<setProperty name="uuid">
+						<groovy>exchange.properties.file.location.substring(exchange.properties.start + 1, exchange.properties.end)</groovy>
+					</setProperty>
+					<setProperty name="host_bank">
+						<simple>https://{{env:docstore_host_bank}}</simple>
+					</setProperty>
+					<setProperty name="host_dom">
+						<simple>https://{{env:docstore_host_dom}}</simple>
+					</setProperty>
+					<setProperty name="path">
+						<simple>{{env:docstore_path}}</simple>
+					</setProperty>
+					<script>
+						<groovy>
+							def document = new ru.seventech.esb.technoprom.api.GetArchiveResponse.Document(
+							exchange.properties.file.name,
+							exchange.properties.uuid,
+							('1'.equals(exchange.properties.file.consumerId) ? exchange.properties.host_bank : exchange.properties.host_dom) + exchange.properties.path + exchange.properties.uuid
+							)
+							exchange.properties.response.documents.add(document)
+						</groovy>
+					</script>
+				</loop>
+				<setBody>
+					<groovy>exchange.properties.response</groovy>
+				</setBody>
+				<setProperty name="logInfo">
+					<simple>${exchangeProperty.packageId}</simple>
+				</setProperty>
+				<to uri="direct:logMethodTiming"/>
+				<to uri="log:ru.seventech.esb.technoprom.getArchive.v2.end?showAll=false&amp;showBody=true"/>
+				<marshal>
+					<json library="Jackson"/>
+				</marshal>
+				<doCatch>
+					<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
+					<to uri="log:ru.seventech.esb.technoprom.getArchive.v2.error?showAll=true"/>
+					<setHeader name="Exchange.HTTP_RESPONSE_CODE">
+						<constant>400</constant>
+					</setHeader>
+					<setBody>
+						<simple>${exception.getResponseBody()}</simple>
+					</setBody>
+				</doCatch>
+			</doTry>
+		</route>
+
+		<route id="direct:getDocumentRoute">
+			<setProperty name="methodName">
+				<simple>getDocument</simple>
+			</setProperty>
+			<to uri="direct:getMethodStartTime"/>
+			<to uri="log:ru.seventech.esb.technoprom.getImage.v2.begin?showAll=false"/>
+			<setProperty name="rosrgatewayToken">
+				<method ref="authService" method="getToken"/>
+			</setProperty>
+			<setProperty name="getDocumentUrl">
+				<simple>{{env:url_getDocument_v2}}</simple>
+			</setProperty>
+			<setProperty name="getDocumentWithParametersUrl">
+				<groovy>
+					String.format(exchange.properties.getDocumentUrl, exchange.in.headers.packageId, exchange.in.headers.documentId)
+				</groovy>
+			</setProperty>
+			<removeHeaders pattern="*"/>
+			<setHeader name="Authorization">
+				<simple>${exchangeProperty.rosrgatewayToken}</simple>
+			</setHeader>
+			<setHeader name="CamelHttpMethod">
+				<constant>GET</constant>
+			</setHeader>
+			<toD uri="https://${exchangeProperty.getDocumentWithParametersUrl}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
+			<setProperty name="logInfo">
+				<simple>${exchange.in.headers.packageId}</simple>
+			</setProperty>
+			<to uri="direct:logMethodTiming"/>
+			<to uri="log:ru.seventech.esb.technoprom.getImage.v2.end?showAll=false"/>
+		</route>
+
+		<route id="direct:getConsumerRoute">
+			<to uri="log:ru.seventech.esb.technoprom.getConsumer.v2.begin?showAll=false"/>
+			<setProperty name="rosrgatewayToken">
+				<method ref="authService" method="getToken"/>
+			</setProperty>
+			<removeHeaders pattern="*"/>
+			<setHeader name="Authorization">
+				<simple>${exchangeProperty.rosrgatewayToken}</simple>
+			</setHeader>
+			<setHeader name="CamelHttpMethod">
+				<constant>GET</constant>
+			</setHeader>
+			<toD uri="https://{{env:url_getConsumer_v2}}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
+			<to uri="log:ru.seventech.esb.technoprom.getConsumer.v2.end?showAll=false"/>
+		</route>
+
+		<route id="direct:onlineObjectsRoute">
+			<to uri="log:ru.seventech.esb.technoprom.online.objects.v2.begin?showAll=false"/>
+			<setProperty name="rosrgatewayToken">
+				<method ref="authService" method="getToken"/>
+			</setProperty>
+			<doTry>
+				<setProperty name="objectsUrl">
+					<simple>{{env:url_objects_v2}}</simple>
+				</setProperty>
+				<setProperty name="objectsWithParametersUrl">
+					<groovy>
+						String.format(
+						exchange.properties.objectsUrl,
+						exchange.in.headers.source ?: '0',
+						exchange.in.headers.number ?: '',
+						exchange.in.headers.region ?: '',
+						exchange.in.headers.district ?: '',
+						exchange.in.headers.settlement ?: '',
+						exchange.in.headers.street ?: '',
+						exchange.in.headers.house ?: '',
+						exchange.in.headers.building ?: '',
+						exchange.in.headers.structure ?: '',
+						exchange.in.headers.apartment ?: '',
+						exchange.in.headers.numberType ?: '',
+						exchange.in.headers.cacheUse ?: 'false'
+						)
+					</groovy>
+				</setProperty>
+				<removeHeaders pattern="*"/>
+				<setHeader name="Authorization">
+					<simple>${exchangeProperty.rosrgatewayToken}</simple>
+				</setHeader>
+				<setHeader name="CamelHttpMethod">
+					<constant>GET</constant>
+				</setHeader>
+				<toD uri="https://${exchangeProperty.objectsWithParametersUrl}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
+				<to uri="log:ru.seventech.esb.technoprom.online.objects.v2.end?showAll=false"/>
+				<doCatch>
+					<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
+					<to uri="log:ru.seventech.esb.technoprom.online.objects.v2.error?showAll=true"/>
+					<setHeader name="Exchange.HTTP_RESPONSE_CODE">
+						<constant>400</constant>
+					</setHeader>
+					<setBody>
+						<simple>${exception.getResponseBody()}</simple>
+					</setBody>
+				</doCatch>
+			</doTry>
+		</route>
+
+		<route id="direct:onlineRegionsRoute">
+			<to uri="log:ru.seventech.esb.technoprom.online.regions.v2.begin?showAll=false"/>
+			<setProperty name="rosrgatewayToken">
+				<method ref="authService" method="getToken"/>
+			</setProperty>
+			<doTry>
+				<setProperty name="regionsUrl">
+					<simple>{{env:url_regions_v2}}</simple>
+				</setProperty>
+				<setProperty name="regionsWithParametersUrl">
+					<groovy>
+						String.format(
+						exchange.properties.regionsUrl,
+						exchange.in.headers.source ?: '0',
+						exchange.in.headers.cacheUse ?: 'false'
+						)
+					</groovy>
+				</setProperty>
+				<removeHeaders pattern="*"/>
+				<setHeader name="Authorization">
+					<simple>${exchangeProperty.rosrgatewayToken}</simple>
+				</setHeader>
+				<setHeader name="CamelHttpMethod">
+					<constant>GET</constant>
+				</setHeader>
+				<toD uri="https://${exchangeProperty.regionsWithParametersUrl}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
+				<to uri="log:ru.seventech.esb.technoprom.online.regions.v2.end?showAll=false"/>
+				<doCatch>
+					<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
+					<to uri="log:ru.seventech.esb.technoprom.online.regions.v2.error?showAll=true"/>
+					<setHeader name="Exchange.HTTP_RESPONSE_CODE">
+						<constant>400</constant>
+					</setHeader>
+					<setBody>
+						<simple>${exception.getResponseBody()}</simple>
+					</setBody>
+				</doCatch>
+			</doTry>
+		</route>
+
+		<route id="direct:onlineDistrictsRoute">
+			<to uri="log:ru.seventech.esb.technoprom.online.districts.v2.begin?showAll=false"/>
+			<setProperty name="rosrgatewayToken">
+				<method ref="authService" method="getToken"/>
+			</setProperty>
+			<doTry>
+				<setProperty name="districtsUrl">
+					<simple>{{env:url_districts_v2}}</simple>
+				</setProperty>
+				<setProperty name="districtsWithParametersUrl">
+					<groovy>
+						String.format(
+						exchange.properties.districtsUrl,
+						exchange.in.headers.source ?: '0',
+						exchange.in.headers.region ?: '',
+						exchange.in.headers.cacheUse ?: 'false'
+						)
+					</groovy>
+				</setProperty>
+				<removeHeaders pattern="*"/>
+				<setHeader name="Authorization">
+					<simple>${exchangeProperty.rosrgatewayToken}</simple>
+				</setHeader>
+				<setHeader name="CamelHttpMethod">
+					<constant>GET</constant>
+				</setHeader>
+				<toD uri="https://${exchangeProperty.districtsWithParametersUrl}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
+				<to uri="log:ru.seventech.esb.technoprom.online.districts.v2.end?showAll=false"/>
+				<doCatch>
+					<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
+					<to uri="log:ru.seventech.esb.technoprom.online.districts.v2.error?showAll=true"/>
+					<setHeader name="Exchange.HTTP_RESPONSE_CODE">
+						<constant>400</constant>
+					</setHeader>
+					<setBody>
+						<simple>${exception.getResponseBody()}</simple>
+					</setBody>
+				</doCatch>
+			</doTry>
+		</route>
+
+		<route id="direct:onlineObjectRoute">
+			<to uri="log:ru.seventech.esb.technoprom.online.object.v2.begin?showAll=false"/>
+			<setProperty name="rosrgatewayToken">
+				<method ref="authService" method="getToken"/>
+			</setProperty>
+			<doTry>
+				<setProperty name="objectUrl">
+					<simple>{{env:url_object_v2}}</simple>
+				</setProperty>
+				<setProperty name="objectWithParametersUrl">
+					<groovy>
+						String.format(
+						exchange.properties.objectUrl,
+						exchange.in.headers.source ?: '0',
+						exchange.in.headers.objectId ?: '',
+						exchange.in.headers.cacheUse ?: 'false'
+						)
+					</groovy>
+				</setProperty>
+				<removeHeaders pattern="*"/>
+				<setHeader name="Authorization">
+					<simple>${exchangeProperty.rosrgatewayToken}</simple>
+				</setHeader>
+				<setHeader name="CamelHttpMethod">
+					<constant>GET</constant>
+				</setHeader>
+				<toD uri="https://${exchangeProperty.objectWithParametersUrl}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
+				<to uri="log:ru.seventech.esb.technoprom.online.object.v2.end?showAll=false"/>
+				<doCatch>
+					<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
+					<to uri="log:ru.seventech.esb.technoprom.online.object.v2.error?showAll=true"/>
+					<setHeader name="Exchange.HTTP_RESPONSE_CODE">
+						<constant>400</constant>
+					</setHeader>
+					<setBody>
+						<simple>${exception.getResponseBody()}</simple>
+					</setBody>
+				</doCatch>
+			</doTry>
+		</route>
+
+		<route id="direct:orgsRoute">
+			<to uri="log:ru.seventech.esb.technoprom.orgs.v2.begin?showAll=false"/>
+			<setProperty name="rosrgatewayToken">
+				<method ref="authService" method="getToken"/>
+			</setProperty>
+			<doTry>
+				<setProperty name="objectUrl">
+					<simple>{{env:url_orgs_v2}}</simple>
+				</setProperty>
+				<removeHeaders pattern="*"/>
+				<setHeader name="Authorization">
+					<simple>${exchangeProperty.rosrgatewayToken}</simple>
+				</setHeader>
+				<setHeader name="CamelHttpMethod">
+					<constant>GET</constant>
+				</setHeader>
+				<toD uri="https://${exchangeProperty.objectUrl}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
+				<to uri="log:ru.seventech.esb.technoprom.orgs.v2.end?showAll=false"/>
+				<doCatch>
+					<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
+					<to uri="log:ru.seventech.esb.technoprom.orgs.v2.error?showAll=true"/>
+					<setHeader name="Exchange.HTTP_RESPONSE_CODE">
+						<constant>400</constant>
+					</setHeader>
+					<setBody>
+						<simple>${exception.getResponseBody()}</simple>
+					</setBody>
+				</doCatch>
+			</doTry>
+		</route>
+
+		<route id="direct:agentsRoute">
+			<to uri="log:ru.seventech.esb.technoprom.agents.v2.begin?showAll=false"/>
+			<setProperty name="rosrgatewayToken">
+				<method ref="authService" method="getToken"/>
+			</setProperty>
+			<doTry>
+				<setProperty name="objectUrl">
+					<simple>{{env:url_agents_v2}}</simple>
+				</setProperty>
+				<removeHeaders pattern="*"/>
+				<setHeader name="Authorization">
+					<simple>${exchangeProperty.rosrgatewayToken}</simple>
+				</setHeader>
+				<setHeader name="CamelHttpMethod">
+					<constant>GET</constant>
+				</setHeader>
+				<toD uri="https://${exchangeProperty.objectUrl}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
+				<to uri="log:ru.seventech.esb.technoprom.agents.v2.end?showAll=false"/>
+				<doCatch>
+					<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
+					<to uri="log:ru.seventech.esb.technoprom.agents.v2.error?showAll=true"/>
+					<setHeader name="Exchange.HTTP_RESPONSE_CODE">
+						<constant>400</constant>
+					</setHeader>
+					<setBody>
+						<simple>${exception.getResponseBody()}</simple>
+					</setBody>
+				</doCatch>
+			</doTry>
+		</route>
+
+		<route id="direct:restartRoute">
+			<to uri="log:ru.seventech.esb.technoprom.restart.v2.begin?showAll=false"/>
+			<setProperty name="rosrgatewayToken">
+				<method ref="authService" method="getToken"/>
+			</setProperty>
+			<doTry>
+				<setProperty name="objectUrl">
+					<simple>{{env:url_restart_v2}}</simple>
+				</setProperty>
+				<setProperty name="objectWithParametersUrl">
+					<groovy>
+						String.format(exchange.properties.objectUrl, exchange.in.headers.id)
+					</groovy>
+				</setProperty>
+				<removeHeaders pattern="*"/>
+				<setHeader name="Authorization">
+					<simple>${exchangeProperty.rosrgatewayToken}</simple>
+				</setHeader>
+				<setHeader name="CamelHttpMethod">
+					<constant>POST</constant>
+				</setHeader>
+				<toD uri="https://${exchangeProperty.objectWithParametersUrl}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
+				<to uri="log:ru.seventech.esb.technoprom.restart.v2.end?showAll=false"/>
+				<doCatch>
+					<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
+					<to uri="log:ru.seventech.esb.technoprom.restart.v2.error?showAll=true"/>
+					<setHeader name="Exchange.HTTP_RESPONSE_CODE">
+						<constant>400</constant>
+					</setHeader>
+					<setBody>
+						<simple>${exception.getResponseBody()}</simple>
+					</setBody>
+				</doCatch>
+			</doTry>
+		</route>
 
 		<route id="ru.seventech.esb.technoprom.saveDocument.v2">
 			<from uri="direct:ru.seventech.esb.technoprom.saveDocument.v2"/>
@@ -1392,7 +1395,7 @@
 			<to uri="log:ru.seventech.esb.technoprom.addApplication.getPackage.v2.beforeRequest?showAll=true"/>
 			<toD uri="https://${exchangeProperty.getPackageUrlWithUid}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
 			<unmarshal>
-				<json library="Jackson" unmarshalTypeName="java.util.HashMap"/>
+				<json library="Jackson" unmarshalType="java.util.HashMap"/>
 			</unmarshal>
 			<setProperty name="packageInfo">
 				<simple>${body}</simple>
@@ -1453,7 +1456,7 @@
 			</marshal>
       <toD uri="https://${exchangeProperty.sendZipUrlWithUid}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
 			<unmarshal>
-				<json library="Jackson" unmarshalTypeName="java.util.HashMap"/>
+				<json library="Jackson" unmarshalType="java.util.HashMap"/>
 			</unmarshal>
 			<to uri="log:ru.seventech.esb.technoprom.addApplication.v2.sendZip.afterRequest?showAll=true"/>
 			<setProperty name="sendZipResponse">
@@ -1461,7 +1464,6 @@
 			</setProperty>
 			<to uri="log:ru.seventech.esb.technoprom.addApplication.v2.end?showAll=true"/>
 		</route>
-
 
 		<route id="getMethodStartTime">
 			<description>Запоминает время начала выполнения метода</description>
