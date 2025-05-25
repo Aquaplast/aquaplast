@@ -1,73 +1,10 @@
-// ИЗМЕНЕНИЯ В ИМПОРТАХ
-import org.apache.camel.http.base.HttpClientConfigurer; // <--- Новый пакет Camel 4.x
-import org.apache.hc.client5.http.config.RequestConfig; // <--- HttpClient 5.x
-import org.apache.hc.client5.http.impl.classic.HttpClientBuilder; 
-import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
-import org.apache.hc.client5.http.socket.ConnectionSocketFactory;
-import org.apache.hc.client5.http.socket.PlainConnectionSocketFactory;
-import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
-import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactory;
-import org.apache.hc.core5.http.config.RegistryBuilder;
-import org.apache.hc.core5.util.Timeout; // <--- Новый класс для таймаутов
-import org.apache.hc.core5.util.TimeValue;
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	   xsi:schemaLocation="
+         http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+         http://camel.apache.org/schema/spring https://camel.apache.org/schema/spring/camel-spring-4.0.0.xsd">
 
-// ...
+	<bean id="trustAllHttpClientConfigurer" class="ru.seventech.esb.technoprom.config.TrustAllHttpClientConfigurer"/>
 
-public class TrustAllHttpClientConfigurer implements HttpClientConfigurer {
-
-    @Override
-    public void configureHttpClient(HttpClientBuilder clientBuilder) {
-        try {
-            // ИЗМЕНЕНИЯ В SSL-КОНФИГУРАЦИИ
-            final SSLContext sslContext = createTrustAllSSLContext(); // <--- Вынесено в отдельный метод
-            
-            final SSLConnectionSocketFactory sslsf = new SSLConnectionSocketFactory(
-                    sslContext,
-                    NoopHostnameVerifier.INSTANCE); // <--- Упрощенный конструктор
-
-            // ИЗМЕНЕНИЯ В НАСТРОЙКЕ ПУЛА СОЕДИНЕНИЙ
-            final PoolingHttpClientConnectionManager connectionManager = 
-                    new PoolingHttpClientConnectionManager(
-                            RegistryBuilder.<ConnectionSocketFactory>create()
-                                    .register("http", PlainConnectionSocketFactory.getSocketFactory())
-                                    .register("https", sslsf)
-                                    .build()); // <--- Убран устаревший параметр TTL
-
-            connectionManager.setMaxTotal(200);
-            connectionManager.setDefaultMaxPerRoute(200);
-
-            // ИЗМЕНЕНИЯ В ТАЙМАУТАХ
-            clientBuilder
-                    .setConnectionManager(connectionManager)
-                    .evictIdleConnections(TimeValue.ofMinutes(41)) // <--- Новый метод HttpClient 5.x
-                    .setDefaultRequestConfig(RequestConfig.custom()
-                            .setResponseTimeout(Timeout.ofMinutes(38)) // <--- Замена setSocketTimeout
-                            .setConnectionRequestTimeout(Timeout.ofMinutes(1)) 
-                            .setConnectTimeout(Timeout.ofMinutes(1)) // <--- Timeout вместо миллисекунд
-                            .build());
-            
-        } catch (Exception e) {
-            log.error("HTTP client configuration error: {}", e.getMessage(), e); // <--- Добавлен stack trace
-        }
-    }
-
-    // НОВЫЙ МЕТОД ДЛЯ SSL-КОНТЕКСТА
-    private SSLContext createTrustAllSSLContext() throws Exception { // <--- Вынесена логика создания SSL
-        final TrustManager[] trustAllCerts = new TrustManager[]{ ... };
-        final SSLContext sslContext = SSLContext.getInstance("TLS");
-        sslContext.init(null, trustAllCerts, new SecureRandom());
-        return sslContext;
-    }
-}
-
-<dependency>
-    <groupId>org.apache.camel</groupId>
-    <artifactId>camel-http</artifactId>
-    <version>${camel.version}</version>
-</dependency>
-
-<dependency>
-    <groupId>org.apache.httpcomponents.client5</groupId>
-    <artifactId>httpclient5</artifactId>
-    <version>5.2.1</version>
-</dependency>
+	<bean id="organizationDataProcessor" class="ru.seventech.esb.technoprom.processor.OrganizationDataProcessor"/>
