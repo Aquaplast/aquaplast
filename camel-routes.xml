@@ -3,17 +3,16 @@
 	   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	   xsi:schemaLocation="
          http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
-         http://camel.apache.org/schema/spring https://camel.apache.org/schema/spring/camel-spring-3.20.5.xsd">
+         http://camel.apache.org/schema/spring/v4.0 classpath:schemas/camel-spring-v4.0.xsd">
 
 	<bean id="trustAllHttpClientConfigurer" class="ru.seventech.esb.technoprom.config.TrustAllHttpClientConfigurer"/>
 
 	<bean id="organizationDataProcessor" class="ru.seventech.esb.technoprom.processor.OrganizationDataProcessor"/>
 <!--	<bean id="testProcessor" class="ru.seventech.esb.technoprom.processor.Test"/>-->
 
-	<!-- согласно документации кастомный форматер должен называться именно так - с большой буквы -->
 	<bean id="CamelCustomLogMask" class="ru.seventech.esb.technoprom.config.CustomMaskingFormatter"/>
 
-	<camelContext xmlns="http://camel.apache.org/schema/spring" id="gate_rr_adapter" useMDCLogging="true" logMask="true">
+	<camelContext xmlns="http://camel.apache.org/schema/spring/v4.0" id="gate_rr_adapter" useMDCLogging="true" logMask="true">
 
 		<onException>
 			<exception>java.net.SocketException</exception>
@@ -35,54 +34,51 @@
 
 		<rest>
 			<get path="/v2/gate_rr_adapter/docs">
-				<description>Документация</description>
 				<to uri="direct:ru.seventech.esb.router.docs.listener.v2"/>
 			</get>
 
 			<post path="/v2/gate_rr_adapter/createPackage">
-				<description>Создание нового пакета</description>
+<!--				<description>Создание нового пакета</description>-->
 				<param name="Authorization" type="header" required="true" description="Токен авторизации (Bearer)"/>
 				<param name="body" type="body" description="json - запрос подробности см. документацию" required="true"/>
 				<to uri="direct:ru.seventech.esb.technoprom.createPackage.v2"/>
 			</post>
 
 			<post path="/v2/gate_rr_adapter/createApplication">
-				<description>Генерация XML файлов пакета</description>
+<!--				<description>Генерация XML файлов пакета</description>-->
 				<param name="Authorization" type="header" required="true" description="Токен авторизации (Bearer)"/>
 				<param name="body" type="body" description="json - запрос подробности см. документацию" required="true"/>
 				<to uri="direct:createApplicationRoute"/>
 			</post>
 
 			<post path="/v2/gate_rr_adapter/addApplication">
-				<description>Добавление документа к пакету</description>
+<!--				<description>Добавление документа к пакету</description>-->
 				<param name="Authorization" type="header" required="false" description="Токен авторизации (Bearer)"/>
 				<param name="body" type="body" description="json - запрос подробности см. документацию" required="true"/>
 				<to uri="direct:addApplicationRoute"/>
 			</post>
 
 			<post path="/v2/gate_rr_adapter/addApplicationAPIX">
-				<description>Добавление документа к пакету APIX</description>
+<!--				<description>Добавление документа к пакету APIX</description>-->
 				<param name="Authorization" type="header" required="false" description="Токен авторизации (Bearer)"/>
 				<param name="body" type="body" description="json - запрос подробности см. документацию" required="true"/>
 				<to uri="direct:addApplicationAPIXRoute"/>
 			</post>
 
 			<post path="/v2/gate_rr_adapter/deletePackage">
-				<description>Удаление пакета</description>
 				<param name="Authorization" type="header" required="true" description="Токен авторизации (Bearer)"/>
 				<param name="body" type="body" description="json - запрос подробности см. документацию" required="true"/>
 				<to uri="direct:deletePackageRoute"/>
 			</post>
 
 			<post path="/v2/gate_rr_adapter/getArchive">
-				<description>Получить архив пакета</description>
+<!--				<description>Получить архив пакета</description>-->
 				<param name="Authorization" type="header" required="true" description="Токен авторизации (Bearer)"/>
 				<param name="body" type="body" description="json - запрос подробности см. документацию" required="true"/>
 				<to uri="direct:getArchiveRoute"/>
 			</post>
 
 			<get path="/v2/gate_rr_adapter/getDocument">
-				<description>Получение документа</description>
 				<param name="packageId" description="Номер пакета" type="query" required="true"/>
 				<param name="documentId" description="Номер документа" type="query" required="true"/>
 				<param name="Authorization" type="header" required="true" description="Токен авторизации (Bearer)"/>
@@ -90,13 +86,11 @@
 			</get>
 
 			<get path="/v2/gate_rr_adapter/getConsumer">
-				<description>Получение потребителя</description>
 				<param name="Authorization" type="header" required="true" description="Токен авторизации (Bearer)"/>
 				<to uri="direct:getConsumerRoute"/>
 			</get>
 
 			<get path="/v2/gate_rr_adapter/online/objects">
-				<description>GET objects</description>
 				<param name="source" type="query" required="false"/>
 				<param name="number" type="query" required="false"/>
 				<param name="region" type="query" required="false"/>
@@ -114,7 +108,6 @@
 			</get>
 
 			<get path="/v2/gate_rr_adapter/online/regions">
-				<description>GET regions</description>
 				<param name="source" type="query" required="false"/>
 				<param name="cacheUse" type="query" required="false" defaultValue="false"/>
 				<param name="Authorization" type="header" required="true"/>
@@ -122,7 +115,6 @@
 			</get>
 
 			<get path="/v2/gate_rr_adapter/online/districts">
-				<description>GET districts</description>
 				<param name="source" type="query" required="false"/>
 				<param name="region" type="query" required="false"/>
 				<param name="cacheUse" type="query" required="false" defaultValue="false"/>
@@ -131,7 +123,6 @@
 			</get>
 
 			<get path="/v2/gate_rr_adapter/online/object">
-				<description>GET object</description>
 				<param name="source" type="query" required="false"/>
 				<param name="objectId" type="query" required="false"/>
 				<param name="cacheUse" type="query" required="false" defaultValue="false"/>
@@ -140,19 +131,16 @@
 			</get>
 
 			<get path="/v2/gate_rr_adapter/orgs">
-				<description>GET user organizations</description>
 				<param name="Authorization" type="header" required="true"/>
 				<to uri="direct:orgsRoute"/>
 			</get>
 
 			<get path="/v2/gate_rr_adapter/agents">
-				<description>GET user agents</description>
 				<param name="Authorization" type="header" required="true"/>
 				<to uri="direct:agentsRoute"/>
 			</get>
 
 			<post path="/v2/gate_rr_adapter/restart">
-				<description>GET user agents</description>
 				<param name="id" type="query" required="true"/>
 				<param name="Authorization" type="header" required="true"/>
 				<to uri="direct:restartRoute"/>
@@ -1466,7 +1454,6 @@
 		</route>
 
 		<route id="getMethodStartTime">
-			<description>Запоминает время начала выполнения метода</description>
 			<from uri="direct:getMethodStartTime"/>
 			<setProperty name="methodStartTime">
 				<simple>${date:now:yyyy-MM-dd HH:mm:ss.SSS}</simple>
@@ -1477,7 +1464,6 @@
 		</route>
 
 		<route id="logMethodTiming">
-			<description>Логирует время выполнения метода</description>
 			<from uri="direct:logMethodTiming"/>
 			<choice>
 				<when>
