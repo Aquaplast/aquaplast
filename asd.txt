@@ -1,57 +1,81 @@
 import org.apache.camel.ProducerTemplate;
-import org.apache.camel.test.spring.CamelSpringBootRunner;
-import org.apache.camel.test.spring.MockEndpoints;
-import org.apache.camel.test.spring.MockEndpointsAndSkip;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.contrib.java.lang.system.EnvironmentVariables;
-import org.junit.runner.RunWith;
+import org.apache.camel.test.spring.junit5.CamelSpringBootTest;
+import org.apache.camel.test.spring.junit5.MockEndpoints;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.ImportResource;
+import org.springframework.test.annotation.DirtiesContext;
+import org.uk.puppetysystem.test.extensions.EnvironmentExtension;
 import ru.seventech.esb.technoprom.Application;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
 
-@RunWith(CamelSpringBootRunner.class)
+@CamelSpringBootTest
 @SpringBootTest(classes = Application.class)
 @ImportResource("classpath:routes/camel-routes.xml")
 @MockEndpoints("log.*")
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 public class EsbTechnopromAdapterTest {
 
     @Autowired
     private ProducerTemplate template;
 
-    @ClassRule
-    public static final EnvironmentVariables environmentVariables
-            = new EnvironmentVariables();
+    @RegisterExtension
+    static EnvironmentExtension environmentVariables = new EnvironmentExtension();
 
-    @BeforeClass
-    public static void init() {
+    @BeforeAll
+    static void init() throws IOException {
         Properties props = new Properties();
-        InputStream propsIS = EsbTechnopromAdapterTest.class.getResourceAsStream("/env.properties");
-        if (propsIS == null) {
-            throw new RuntimeException("Unable to find test property file");
-        }
-        try {
+        try (InputStream propsIS = EsbTechnopromAdapterTest.class.getResourceAsStream("/env.properties")) {
+            if (propsIS == null) {
+                throw new RuntimeException("Unable to find test property file");
+            }
             props.load(propsIS);
-        } catch (IOException e) {
-            throw new RuntimeException("Unable to parse test property file");
+            props.forEach((key, value) -> 
+                environmentVariables.set(key.toString(), value.toString())
+            );
         }
-        props.forEach((key, value) -> {
-            environmentVariables.set(key.toString(), value.toString());
-        });
     }
 
-    /**
-     * This test doesn't assert any particular route,
-     * but all the routes starting.
-     * It's for checking missing properties, etc.
-     */
     @Test
     public void routesStartTest() {
+        // Тест проверяет запуск всех маршрутов
+    }
+}
+
+
+
+<dependency>
+    <groupId>org.apache.camel</groupId>
+    <artifactId>camel-test-spring-junit5</artifactId>
+    <version>${camel.version}</version>
+    <scope>test</scope>
+</dependency>
+
+<dependency>
+    <groupId>org.junit.jupiter</groupId>
+    <artifactId>junit-jupiter-api</artifactId>
+    <version>5.9.2</version>
+    <scope>test</scope>
+</dependency>
+
+
+import org.junit.jupiter.api.extension.BeforeAllCallback;
+import org.junit.jupiter.api.extension.ExtensionContext;
+
+public class EnvironmentExtension implements BeforeAllCallback {
+    
+    public void set(String key, String value) {
+        System.setProperty(key, value);
+    }
+
+    @Override
+    public void beforeAll(ExtensionContext context) {
+        // Дополнительная инициализация при необходимости
     }
 }
