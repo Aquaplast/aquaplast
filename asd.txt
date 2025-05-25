@@ -1,1 +1,1 @@
-classpath:schemas/camel-spring-4.0.0.xsd
+https://camel.apache.org/schema/spring/camel-spring-4.0.0.xsd
