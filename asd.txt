@@ -1,1 +1,1 @@
-DTD/XSD XML entity [https://camel.apache.org/schema/spring/camel-spring.xsd] not found, falling back to remote https resolution
+classpath:schemas/camel-spring-4.0.0.xsd
