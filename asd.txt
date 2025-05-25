@@ -1,19 +1,85 @@
-***************************
-APPLICATION FAILED TO START
-***************************
-
-Description:
-
-The dependencies of some of the beans in the application context form a cycle:
-
-   template
-┌─────┐
-|  gate_rr_adapter
-↑     ↓
-|  org.apache.camel.model.rest.springboot.RestConfigurationDefinitionAutoConfiguration (field private org.apache.camel.CamelContext org.apache.camel.model.rest.springboot.RestConfigurationDefinitionAutoConfiguration.camelContext)
-└─────┘
-
-
-Action:
-
-Relying upon circular references is discouraged and they are prohibited by default. Update your application to remove the dependency cycle between beans. As a last resort, it may be possible to break the cycle automatically by setting spring.main.allow-circular-references to true.
+org.apache.camel.FailedToCreateRouteException: Failed to create route direct:ru.seventech.esb.technoprom.createPackage.v2 at: >>> DoTry[[To[direct:ru.seventech.esb.technoprom.prepareRequest.v2], Unmarshal[org.apache.camel.model.dataformat.JsonDataFormat@7daa61f3], SetBody[groovy{
+						def request = new ru.seventech.esb.technoprom.dto.CreatePackageRequestDto()
+						request.setType(exchange.in.body.getPackageType())
+						request.setData(exchange.in.body.getPackageData())
+						request.setOrgId(exchange.in.body.getOrgId())
+						request.setAgentId(exchange.in.body.getAgentId())
+						return request
+					}], SetProperty[initialRequest, simple{${body}}], process[ref:organizationDataProcessor], To[log:ru.seventech.esb.technoprom.createPackage.v2.beforeRequest?showBody=true], Marshal[org.apache.camel.model.dataformat.JsonDataFormat@3a43d133], SetHeader[Authorization, simple{${exchangeProperty.rosrgatewayToken}}], Log[[ZERO-SIGN-LOG] Send request https://{{env:url_createPackage_v2}} with body ${body}], DynamicTo[https://{{env:url_createPackage_v2}}?httpClientConfigurer=trustAllHttpClientConfigurer], Unmarshal[org.apache.camel.model.dataformat.JsonDataFormat@5b56b654], SetProperty[createPackageResponse, simple{${body}}], SetProperty[packageId, groovy{exchange.in.body.getId()}], SetProperty[documents, groovy{
+						exchange.properties.initialRequest.getData().get("declarants")
+					}], Choice[[When[groovy{
+							exchange.properties.documents != null
+						} -> [To[direct:ru.seventech.esb.technoprom.saveDocuments.v2]]]]], SetProperty[documents, groovy{
+						exchange.properties.initialRequest.getData().get("documents")
+					}], Choice[[When[groovy{
+							exchange.properties.documents != null
+						} -> [To[direct:ru.seventech.esb.technoprom.saveDocuments.v2]]]]], SetProperty[transfer, groovy{
+						exchange.properties.initialRequest.getData().get("transfer")
+					}], Choice[[When[groovy{
+							exchange.properties.transfer != null
+						} -> [SetProperty[documents, groovy{
+								exchange.properties.transfer.get("declarants")
+							}], Choice[[When[groovy{
+									exchange.properties.documents != null
+								} -> [To[direct:ru.seventech.esb.technoprom.saveDocuments.v2]]]]], SetProperty[documents, groovy{
+								exchange.properties.transfer.get("documents")
+							}], Choice[[When[groovy{
+									exchange.properties.documents != null
+								} -> [To[direct:ru.seventech.esb.technoprom.saveDocuments.v2]]]]]]]]], SetBody[simple{${exchangeProperty.createPackageResponse}}], SetProperty[logInfo, simple{${exchangeProperty.createPackageResponse}}], To[direct:logMethodTiming], To[log:ru.seventech.esb.technoprom.createPackage.v2.end?showAll=false], Marshal[org.apache.camel.model.dataformat.JsonDataFormat@4bf324f9], DoCatch[ null -> [SetHeader[Exchange.HTTP_RESPONSE_CODE, constant{400}], To[log:ru.seventech.esb.technoprom.createPackage.v2.error?showAll=true], SetBody[simple{${exception.getResponseBody()}}]]]]] <<< in route: Route(direct:ru.seventech.esb.technoprom.createPackage.v2)[F... because of Property with key [env:url_createPackage_v2] using function [env] returned null value which is not allowed, from input: [ZERO-SIGN-LOG] Send request https://{{env:url_createPackage_v2}} with body ${body}
+	at org.apache.camel.reifier.RouteReifier.doCreateRoute(RouteReifier.java:217)
+	at org.apache.camel.reifier.RouteReifier.createRoute(RouteReifier.java:76)
+	at org.apache.camel.impl.DefaultModelReifierFactory.createRoute(DefaultModelReifierFactory.java:49)
+	at org.apache.camel.impl.DefaultCamelContext.startRouteDefinitions(DefaultCamelContext.java:816)
+	at org.apache.camel.impl.DefaultCamelContext.startRouteDefinitions(DefaultCamelContext.java:685)
+	at org.apache.camel.impl.engine.AbstractCamelContext.doInit(AbstractCamelContext.java:2396)
+	at org.apache.camel.support.service.BaseService.init(BaseService.java:78)
+	at org.apache.camel.impl.engine.AbstractCamelContext.init(AbstractCamelContext.java:2062)
+	at org.apache.camel.support.service.BaseService.start(BaseService.java:105)
+	at org.apache.camel.impl.engine.AbstractCamelContext.start(AbstractCamelContext.java:2081)
+	at org.apache.camel.impl.DefaultCamelContext.start(DefaultCamelContext.java:313)
+	at org.apache.camel.spring.SpringCamelContext.start(SpringCamelContext.java:119)
+	at org.apache.camel.spring.xml.CamelContextFactoryBean.start(CamelContextFactoryBean.java:430)
+	at org.apache.camel.spring.xml.CamelContextFactoryBean.onApplicationEvent(CamelContextFactoryBean.java:485)
+	at org.apache.camel.spring.xml.CamelContextFactoryBean.onApplicationEvent(CamelContextFactoryBean.java:100)
+	at org.springframework.context.event.SimpleApplicationEventMulticaster.doInvokeListener(SimpleApplicationEventMulticaster.java:172)
+	at org.springframework.context.event.SimpleApplicationEventMulticaster.invokeListener(SimpleApplicationEventMulticaster.java:165)
+	at org.springframework.context.event.SimpleApplicationEventMulticaster.multicastEvent(SimpleApplicationEventMulticaster.java:143)
+	at org.springframework.context.support.AbstractApplicationContext.publishEvent(AbstractApplicationContext.java:437)
+	at org.springframework.context.support.AbstractApplicationContext.publishEvent(AbstractApplicationContext.java:370)
+	at org.springframework.context.support.AbstractApplicationContext.finishRefresh(AbstractApplicationContext.java:961)
+	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:611)
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.refresh(ServletWebServerApplicationContext.java:146)
+	at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:734)
+	at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:436)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:312)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1306)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1295)
+	at ru.seventech.esb.technoprom.Application.main(Application.java:23)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at org.springframework.boot.loader.MainMethodRunner.run(MainMethodRunner.java:49)
+	at org.springframework.boot.loader.Launcher.launch(Launcher.java:95)
+	at org.springframework.boot.loader.Launcher.launch(Launcher.java:58)
+	at org.springframework.boot.loader.JarLauncher.main(JarLauncher.java:65)
+Caused by: java.lang.IllegalArgumentException: Property with key [env:url_createPackage_v2] using function [env] returned null value which is not allowed, from input: [ZERO-SIGN-LOG] Send request https://{{env:url_createPackage_v2}} with body ${body}
+	at org.apache.camel.component.properties.DefaultPropertiesParser$ParsingContext.getPropertyValue(DefaultPropertiesParser.java:333)
+	at org.apache.camel.component.properties.DefaultPropertiesParser$ParsingContext.readProperty(DefaultPropertiesParser.java:232)
+	at org.apache.camel.component.properties.DefaultPropertiesParser$ParsingContext.doParseNested(DefaultPropertiesParser.java:169)
+	at org.apache.camel.component.properties.DefaultPropertiesParser$ParsingContext.parse(DefaultPropertiesParser.java:118)
+	at org.apache.camel.component.properties.DefaultPropertiesParser.parseUri(DefaultPropertiesParser.java:70)
+	at org.apache.camel.component.properties.PropertiesComponent.parseUri(PropertiesComponent.java:315)
+	at org.apache.camel.component.properties.PropertiesComponent.parseUri(PropertiesComponent.java:170)
+	at org.apache.camel.impl.engine.DefaultCamelContextExtension.resolvePropertyPlaceholders(DefaultCamelContextExtension.java:230)
+	at org.apache.camel.impl.engine.AbstractCamelContext.resolvePropertyPlaceholders(AbstractCamelContext.java:1566)
+	at org.apache.camel.support.CamelContextHelper.parseText(CamelContextHelper.java:374)
+	at org.apache.camel.reifier.AbstractReifier.parseString(AbstractReifier.java:58)
+	at org.apache.camel.reifier.LogReifier.createProcessor(LogReifier.java:51)
+	at org.apache.camel.reifier.ProcessorReifier.createProcessor(ProcessorReifier.java:830)
+	at org.apache.camel.reifier.ProcessorReifier.createOutputsProcessor(ProcessorReifier.java:783)
+	at org.apache.camel.reifier.TryReifier.createProcessor(TryReifier.java:38)
+	at org.apache.camel.reifier.ProcessorReifier.makeProcessor(ProcessorReifier.java:853)
+	at org.apache.camel.reifier.ProcessorReifier.addRoutes(ProcessorReifier.java:593)
+	at org.apache.camel.reifier.RouteReifier.doCreateRoute(RouteReifier.java:213)
+	... 36 common frames omitted
