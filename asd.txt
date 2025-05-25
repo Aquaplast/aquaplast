@@ -1,6 +1,57 @@
-<post path="/v2/gate_rr_adapter/deletePackage">
-				<description>Удаление пакета</description>
-				<param name="Authorization" type="header" required="true" description="Токен авторизации (Bearer)"/>
-				<param name="body" type="body" description="json - запрос подробности см. документацию" required="true"/>
-				<to uri="direct:deletePackageRoute"/>
-			</post>
+import org.apache.camel.ProducerTemplate;
+import org.apache.camel.test.spring.CamelSpringBootRunner;
+import org.apache.camel.test.spring.MockEndpoints;
+import org.apache.camel.test.spring.MockEndpointsAndSkip;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Test;
+import org.junit.contrib.java.lang.system.EnvironmentVariables;
+import org.junit.runner.RunWith;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.ImportResource;
+import ru.seventech.esb.technoprom.Application;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Properties;
+
+@RunWith(CamelSpringBootRunner.class)
+@SpringBootTest(classes = Application.class)
+@ImportResource("classpath:routes/camel-routes.xml")
+@MockEndpoints("log.*")
+public class EsbTechnopromAdapterTest {
+
+    @Autowired
+    private ProducerTemplate template;
+
+    @ClassRule
+    public static final EnvironmentVariables environmentVariables
+            = new EnvironmentVariables();
+
+    @BeforeClass
+    public static void init() {
+        Properties props = new Properties();
+        InputStream propsIS = EsbTechnopromAdapterTest.class.getResourceAsStream("/env.properties");
+        if (propsIS == null) {
+            throw new RuntimeException("Unable to find test property file");
+        }
+        try {
+            props.load(propsIS);
+        } catch (IOException e) {
+            throw new RuntimeException("Unable to parse test property file");
+        }
+        props.forEach((key, value) -> {
+            environmentVariables.set(key.toString(), value.toString());
+        });
+    }
+
+    /**
+     * This test doesn't assert any particular route,
+     * but all the routes starting.
+     * It's for checking missing properties, etc.
+     */
+    @Test
+    public void routesStartTest() {
+    }
+}
