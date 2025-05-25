@@ -1,23 +1,160 @@
- @Value("${custom.oauth2.client-id}")
+@Value("${spring.security.oauth2.client.provider.dom.token-uri}")
+    private String tokenUri;
+
+    @Value("${spring.security.oauth2.client.registration.dom.client-id}")
     private String clientId;
 
-    @Value("${custom.oauth2.client-secret}")
-    private String clientSecret;
+    @Value("${spring.security.oauth2.client.registration.dom.username}")
+    private String username;
 
-    @Value("${custom.oauth2.token-uri}")
-    private String tokenUri;
+    @Value("${spring.security.oauth2.client.registration.dom.password}")
+    private String password;
 
     @Bean
     public ClientRegistration clientRegistration() {
         return ClientRegistration.withRegistrationId("custom-client")
-                .tokenUri(tokenUri)
-                .clientId(clientId)
-                .clientSecret(clientSecret)
-                .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
-                .build();
+            .tokenUri(tokenUri)
+            .clientId(clientId)
+            .clientSecret(clientSecret)
+            .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
+            .build();
     }
 
     @Bean
     public ClientRegistrationRepository clientRegistrationRepository(ClientRegistration clientRegistration) {
         return new InMemoryClientRegistrationRepository(clientRegistration);
     }
+
+=====================================================
+
+package ru.seventech.esb.technoprom.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientProvider;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientProviderBuilder;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizedClientManager;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
+
+@Configuration
+public class OauthConfiguration {
+
+    @Bean
+    public OAuth2AuthorizedClientManager authorizedClientManager(
+        ClientRegistrationRepository clientRegistrationRepository,
+        OAuth2AuthorizedClientRepository authorizedClientRepository
+    ) {
+        OAuth2AuthorizedClientProvider authorizedClientProvider = OAuth2AuthorizedClientProviderBuilder.builder()
+            .clientCredentials()
+            .build();
+
+        var authorizedClientManager = new DefaultOAuth2AuthorizedClientManager(
+            clientRegistrationRepository,
+            authorizedClientRepository
+        );
+
+        authorizedClientManager.setAuthorizedClientProvider(authorizedClientProvider);
+
+        return authorizedClientManager;
+    }
+}
+
+package ru.seventech.esb.technoprom.api;
+
+import com.auth0.jwt.JWT;
+import com.auth0.jwt.exceptions.JWTDecodeException;
+import com.auth0.jwt.interfaces.DecodedJWT;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.http.HttpStatus;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.message.BasicNameValuePair;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import ru.seventech.esb.technoprom.api.keycloak.AccessToken;
+import ru.seventech.esb.technoprom.api.keycloak.KeycloakException;
+import ru.seventech.esb.technoprom.util.HttpUtil;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.List;
+
+@Slf4j
+@Service
+public class KeycloakService {
+
+    @Value("${spring.security.oauth2.client.provider.dom.token-uri}")
+    private String url;
+
+    @Value("${spring.security.oauth2.client.registration.dom.client-id}")
+    private String clientId;
+
+    @Value("${spring.security.oauth2.client.registration.dom.username}")
+    private String username;
+
+    @Value("${spring.security.oauth2.client.registration.dom.password}")
+    private String password;
+
+    private AccessToken accessToken = null;
+
+    public AccessToken requestAccessTokenOrFail() throws IOException {
+        if (accessToken != null) {
+            DecodedJWT jwt = decodedJWT(accessToken.getAccessToken());
+            var cal = Calendar.getInstance();
+            cal.setTime(jwt.getExpiresAt());
+            cal.add(Calendar.MINUTE, -10);
+            var expiresAt = cal.getTime();
+            var currentDate = new Date();
+            if (currentDate.before(expiresAt))
+                return accessToken;
+        }
+
+        HttpPost httpPost = new HttpPost(url);
+
+        List<NameValuePair> postParameters = new ArrayList<>();
+        postParameters.add(new BasicNameValuePair("grant_type", "password"));
+        postParameters.add(new BasicNameValuePair("scope", "openid"));
+        postParameters.add(new BasicNameValuePair("client_id", clientId));
+        postParameters.add(new BasicNameValuePair("username", username));
+        postParameters.add(new BasicNameValuePair("password", password));
+
+        httpPost.setEntity(new UrlEncodedFormEntity(postParameters, "UTF-8"));
+
+        try (
+                var client = HttpUtil.createSslClient();
+                var response = client.execute(httpPost)
+        ) {
+            if (response.getStatusLine().getStatusCode() != HttpStatus.SC_OK) {
+                log.warn("keycloak wrong response ({}): {}",
+                        response.getStatusLine().getStatusCode(),
+                        response.getStatusLine().getReasonPhrase()
+                );
+                throw new KeycloakException("bad request to keycloak");
+            }
+            accessToken = new ObjectMapper().readValue(response.getEntity().getContent(), AccessToken.class);
+            return accessToken;
+        }
+    }
+
+    public String getSubject(String token) {
+        DecodedJWT jwt = decodedJWT(token);
+        return jwt.getSubject();
+    }
+
+    private DecodedJWT decodedJWT(String token) {
+        DecodedJWT jwt;
+        try {
+            jwt = JWT.decode(token);
+        } catch (JWTDecodeException exception) {
+            throw new KeycloakException("Ooops problem with token", exception);
+        }
+        return jwt;
+    }
+}
+
