@@ -1,73 +1,73 @@
-package ru.seventech.esb.technoprom.config;
+// ИЗМЕНЕНИЯ В ИМПОРТАХ
+import org.apache.camel.http.base.HttpClientConfigurer; // <--- Новый пакет Camel 4.x
+import org.apache.hc.client5.http.config.RequestConfig; // <--- HttpClient 5.x
+import org.apache.hc.client5.http.impl.classic.HttpClientBuilder; 
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
+import org.apache.hc.client5.http.socket.ConnectionSocketFactory;
+import org.apache.hc.client5.http.socket.PlainConnectionSocketFactory;
+import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
+import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactory;
+import org.apache.hc.core5.http.config.RegistryBuilder;
+import org.apache.hc.core5.util.Timeout; // <--- Новый класс для таймаутов
+import org.apache.hc.core5.util.TimeValue;
 
-import java.security.SecureRandom;
-import java.security.cert.X509Certificate;
-import java.util.concurrent.TimeUnit;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.camel.component.http.HttpClientConfigurer;
-import org.apache.http.client.config.RequestConfig;
-import org.apache.http.config.RegistryBuilder;
-import org.apache.http.conn.socket.ConnectionSocketFactory;
-import org.apache.http.conn.socket.PlainConnectionSocketFactory;
-import org.apache.http.conn.ssl.NoopHostnameVerifier;
-import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
-import org.apache.http.ssl.SSLContextBuilder;
+// ...
 
-/**
- * Created by @author S. Gorev
- * Email: sgorev@regioncom.ru
- */
-@Slf4j
 public class TrustAllHttpClientConfigurer implements HttpClientConfigurer {
 
     @Override
     public void configureHttpClient(HttpClientBuilder clientBuilder) {
         try {
-            SSLContextBuilder builder = new SSLContextBuilder();
-            TrustManager[] trustAllCerts = new TrustManager[]{
-                    new X509TrustManager() {
-                        public X509Certificate[] getAcceptedIssuers() {
-                            return null;
-                        }
+            // ИЗМЕНЕНИЯ В SSL-КОНФИГУРАЦИИ
+            final SSLContext sslContext = createTrustAllSSLContext(); // <--- Вынесено в отдельный метод
+            
+            final SSLConnectionSocketFactory sslsf = new SSLConnectionSocketFactory(
+                    sslContext,
+                    NoopHostnameVerifier.INSTANCE); // <--- Упрощенный конструктор
 
-                        public void checkClientTrusted(X509Certificate[] certs, String authType) {
-                        }
+            // ИЗМЕНЕНИЯ В НАСТРОЙКЕ ПУЛА СОЕДИНЕНИЙ
+            final PoolingHttpClientConnectionManager connectionManager = 
+                    new PoolingHttpClientConnectionManager(
+                            RegistryBuilder.<ConnectionSocketFactory>create()
+                                    .register("http", PlainConnectionSocketFactory.getSocketFactory())
+                                    .register("https", sslsf)
+                                    .build()); // <--- Убран устаревший параметр TTL
 
-                        public void checkServerTrusted(X509Certificate[] certs, String authType) {
-                        }
-                    }
-            };
-            SSLContext sc = null;
-            sc = builder.build();
-            sc.init(null, trustAllCerts, new SecureRandom());
-            SSLConnectionSocketFactory sslsf = new SSLConnectionSocketFactory(sc, NoopHostnameVerifier.INSTANCE);
-            PoolingHttpClientConnectionManager poolingmgr = new PoolingHttpClientConnectionManager(
-                    RegistryBuilder.<ConnectionSocketFactory>create()
-                            .register("http", PlainConnectionSocketFactory.getSocketFactory())
-                            .register("https", sslsf)
-                            .build(),
-                    null,
-                    null,
-                    null,
-                    41 * 60 * 1000, // Время жизни соединения в пуле
-                     TimeUnit.MILLISECONDS);
-            poolingmgr.setMaxTotal(200);
-            poolingmgr.setDefaultMaxPerRoute(200);
-            clientBuilder.setKeepAliveStrategy((response, context) ->  60 * 1000); // Время жизни соединения
-            clientBuilder.setConnectionManager(poolingmgr);
-            clientBuilder.setDefaultRequestConfig(RequestConfig.custom()
-                .setSocketTimeout(38 * 60 * 1000) // Время ожидания получения данных от сервера после установления соединения
-                .setConnectionRequestTimeout(60 * 1000) // Время ожидания получения соединения из пула
-                .setConnectTimeout(60 * 1000) // Время ожидания установления соединения с сервером
-                .build()
-            );
+            connectionManager.setMaxTotal(200);
+            connectionManager.setDefaultMaxPerRoute(200);
+
+            // ИЗМЕНЕНИЯ В ТАЙМАУТАХ
+            clientBuilder
+                    .setConnectionManager(connectionManager)
+                    .evictIdleConnections(TimeValue.ofMinutes(41)) // <--- Новый метод HttpClient 5.x
+                    .setDefaultRequestConfig(RequestConfig.custom()
+                            .setResponseTimeout(Timeout.ofMinutes(38)) // <--- Замена setSocketTimeout
+                            .setConnectionRequestTimeout(Timeout.ofMinutes(1)) 
+                            .setConnectTimeout(Timeout.ofMinutes(1)) // <--- Timeout вместо миллисекунд
+                            .build());
+            
         } catch (Exception e) {
-            log.error("configureHttpClient error: {}", e.getMessage());
+            log.error("HTTP client configuration error: {}", e.getMessage(), e); // <--- Добавлен stack trace
         }
     }
+
+    // НОВЫЙ МЕТОД ДЛЯ SSL-КОНТЕКСТА
+    private SSLContext createTrustAllSSLContext() throws Exception { // <--- Вынесена логика создания SSL
+        final TrustManager[] trustAllCerts = new TrustManager[]{ ... };
+        final SSLContext sslContext = SSLContext.getInstance("TLS");
+        sslContext.init(null, trustAllCerts, new SecureRandom());
+        return sslContext;
+    }
 }
+
+<dependency>
+    <groupId>org.apache.camel</groupId>
+    <artifactId>camel-http</artifactId>
+    <version>${camel.version}</version>
+</dependency>
+
+<dependency>
+    <groupId>org.apache.httpcomponents.client5</groupId>
+    <artifactId>httpclient5</artifactId>
+    <version>5.2.1</version>
+</dependency>
