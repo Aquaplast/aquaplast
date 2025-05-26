@@ -1,3 +1,1 @@
-{"level":"INFO","thread":"main","mdc":{"camel.contextId":"gate_rr_adapter"},"logger":"org.apache.camel.impl.engine.AbstractCamelContext","context":"default","stream":null,"service_name":"gate-rr-adapter-preprod","fullmessage":"    Started route3 (rest://post:/v2/gate_rr_adapter/createPackage)","datetime":"2025-05-27 01:34:29.385"}
-
-Whitelabel Error Page
+spring.security.enabled=false
