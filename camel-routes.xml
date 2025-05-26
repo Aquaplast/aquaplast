@@ -3,7 +3,7 @@
 	   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	   xsi:schemaLocation="
          http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
-         http://camel.apache.org/schema/spring/v4.0 classpath:schemas/camel-spring-v4.0.xsd">
+         http://camel.apache.org/schema/spring classpath:schemas/camel-spring.xsd">
 
 	<bean id="trustAllHttpClientConfigurer" class="ru.seventech.esb.technoprom.config.TrustAllHttpClientConfigurer"/>
 
@@ -12,7 +12,7 @@
 
 	<bean id="CamelCustomLogMask" class="ru.seventech.esb.technoprom.config.CustomMaskingFormatter"/>
 
-	<camelContext xmlns="http://camel.apache.org/schema/spring/v4.0" id="gate_rr_adapter" useMDCLogging="true" logMask="true">
+	<camelContext xmlns="http://camel.apache.org/schema/spring" id="gate_rr_adapter" useMDCLogging="true" logMask="true">
 
 		<onException>
 			<exception>java.net.SocketException</exception>
@@ -149,6 +149,7 @@
 		</rest>
 
 		<route id="direct:ru.seventech.esb.router.docs.listener.v2">
+			<from uri="direct:ru.seventech.esb.router.docs.listener.v2"/>
 			<removeHeaders pattern="*" excludePattern="X-Forwarded-Uri"/>
 			<setHeader name="CamelHttpResponseCode">
 				<constant>302</constant>
@@ -178,6 +179,7 @@
 		</route>
 
 		<route id="direct:ru.seventech.esb.technoprom.createPackage.v2">
+			<from uri="direct:ru.seventech.esb.technoprom.createPackage.v2"/>
 			<setProperty name="methodName">
 				<simple>createPackage</simple>
 			</setProperty>
@@ -213,8 +215,8 @@
 				<setHeader name="Authorization">
 					<simple>${exchangeProperty.rosrgatewayToken}</simple>
 				</setHeader>
-				<log message="[ZERO-SIGN-LOG] Send request https://{{env:url_createPackage_v2}} with body ${body}"/>
-				<toD uri="https://{{env:url_createPackage_v2}}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
+				<log message="[ZERO-SIGN-LOG] Send request https://{{url_createPackage_v2}} with body ${body}"/>
+				<toD uri="https://{{url_createPackage_v2}}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
 				<unmarshal>
 					<json library="Jackson" unmarshalType="ru.seventech.esb.technoprom.dto.CreatePackageResponseDto"/>
 				</unmarshal>
@@ -300,7 +302,7 @@
 					<json library="Jackson"/>
 				</marshal>
 				<doCatch>
-					<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
+					<exception>org.apache.camel.http.base.HttpOperationFailedException</exception>
 					<setHeader name="Exchange.HTTP_RESPONSE_CODE">
 						<constant>400</constant>
 					</setHeader>
@@ -313,6 +315,7 @@
 		</route>
 
 		<route id="direct:createApplicationRoute">
+			<from uri="direct:createApplicationRoute"/>
 			<setProperty name="methodName">
 				<simple>createApplication</simple>
 			</setProperty>
@@ -331,7 +334,7 @@
 					<simple>${body.get("packageId")}</simple>
 				</setProperty>
 				<setProperty name="createApplicationUrl">
-					<simple>{{env:url_createApplication_v2}}</simple>
+					<simple>{{url_createApplication_v2}}</simple>
 				</setProperty>
 				<to uri="direct:performCreateApplicationRequest"/>
 				<unmarshal>
@@ -358,13 +361,13 @@
 						<groovy>exchange.properties.responseFiles.get(exchange.properties.CamelLoopIndex)</groovy>
 					</setProperty>
 					<setProperty name="host_bank">
-						<simple>https://{{env:docstore_host_bank}}</simple>
+						<simple>https://{{docstore_host_bank}}</simple>
 					</setProperty>
 					<setProperty name="host_dom">
-						<simple>https://{{env:docstore_host_dom}}</simple>
+						<simple>https://{{docstore_host_dom}}</simple>
 					</setProperty>
 					<setProperty name="path">
-						<simple>{{env:docstore_path}}</simple>
+						<simple>{{docstore_path}}</simple>
 					</setProperty>
 					<choice>
 						<when>
@@ -421,7 +424,7 @@
 					<json library="Jackson"/>
 				</marshal>
 				<doCatch>
-					<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
+					<exception>org.apache.camel.http.base.HttpOperationFailedException</exception>
 					<setProperty name="httpResponseCode">
 						<groovy>${exception.getStatusCode()}</groovy>
 					</setProperty>
@@ -457,6 +460,7 @@
 		</route>
 
 		<route id="direct:addApplicationRoute">
+			<from uri="direct:addApplicationRoute"/>
 			<setProperty name="methodName">
 				<simple>addApplication</simple>
 			</setProperty>
@@ -496,7 +500,7 @@
 				<to uri="direct:logMethodTiming"/>
 				<to uri="log:ru.seventech.esb.technoprom.addApplication.v2.end?showAll=true"/>
 				<doCatch>
-					<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
+					<exception>org.apache.camel.http.base.HttpOperationFailedException</exception>
 					<to uri="log:ru.seventech.esb.technoprom.addApplication.v2.error?showAll=true"/>
 					<setHeader name="Exchange.HTTP_RESPONSE_CODE">
 						<constant>400</constant>
@@ -509,6 +513,7 @@
 		</route>
 
 		<route id="direct:addApplicationAPIXRoute">
+			<from uri="direct:addApplicationAPIXRoute"/>
 			<setProperty name="methodName">
 				<simple>addApplicationAPIX</simple>
 			</setProperty>
@@ -526,7 +531,7 @@
 					<simple>${body.get("packageId")}</simple>
 				</setProperty>
 				<setProperty name="createApplicationUrl">
-					<simple>{{env:url_createApplication_apix}}</simple>
+					<simple>{{url_createApplication_apix}}</simple>
 				</setProperty>
 				<setProperty name="documents">
 					<simple>${body.get("documents")}</simple>
@@ -552,7 +557,7 @@
 				<to uri="direct:logMethodTiming"/>
 				<to uri="log:ru.seventech.esb.technoprom.addApplication.v2.end?showAll=true"/>
 				<doCatch>
-					<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
+					<exception>org.apache.camel.http.base.HttpOperationFailedException</exception>
 					<to uri="log:ru.seventech.esb.technoprom.addApplication.v2.error?showAll=true"/>
 					<setHeader name="Exchange.HTTP_RESPONSE_CODE">
 						<constant>400</constant>
@@ -565,6 +570,7 @@
 		</route>
 
 		<route id="direct:deletePackageRoute">
+			<from uri="direct:deletePackageRoute"/>
 			<setProperty name="methodName">
 				<simple>deletePackage</simple>
 			</setProperty>
@@ -591,7 +597,7 @@
 					<simple>${null}</simple>
 				</setBody>
 				<setProperty name="deletePackageUrl">
-					<simple>{{env:url_deletePackage_v2}}</simple>
+					<simple>{{url_deletePackage_v2}}</simple>
 				</setProperty>
 				<setProperty name="deletePackageUrlWithUid">
 					<groovy>
@@ -613,7 +619,7 @@
 				<to uri="direct:logMethodTiming"/>
 				<to uri="log:ru.seventech.esb.technoprom.deletePackage.v2.end?showAll=true"/>
 				<doCatch>
-					<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
+					<exception>org.apache.camel.http.base.HttpOperationFailedException</exception>
 					<to uri="log:ru.seventech.esb.technoprom.deletePackage.v2.error?showAll=true"/>
 					<setHeader name="Exchange.HTTP_RESPONSE_CODE">
 						<constant>400</constant>
@@ -626,6 +632,7 @@
 		</route>
 
 		<route id="direct:getArchiveRoute">
+			<from uri="direct:getArchiveRoute"/>
 			<setProperty name="methodName">
 				<simple>getArchive</simple>
 			</setProperty>
@@ -655,7 +662,7 @@
 					<simple>${null}</simple>
 				</setBody>
 				<setProperty name="getFilesUrl">
-					<simple>{{env:url_getFiles_v2}}</simple>
+					<simple>{{url_getFiles_v2}}</simple>
 				</setProperty>
 				<setProperty name="getFilesUrlWithUid">
 					<groovy>
@@ -692,13 +699,13 @@
 						<groovy>exchange.properties.file.location.substring(exchange.properties.start + 1, exchange.properties.end)</groovy>
 					</setProperty>
 					<setProperty name="host_bank">
-						<simple>https://{{env:docstore_host_bank}}</simple>
+						<simple>https://{{docstore_host_bank}}</simple>
 					</setProperty>
 					<setProperty name="host_dom">
-						<simple>https://{{env:docstore_host_dom}}</simple>
+						<simple>https://{{docstore_host_dom}}</simple>
 					</setProperty>
 					<setProperty name="path">
-						<simple>{{env:docstore_path}}</simple>
+						<simple>{{docstore_path}}</simple>
 					</setProperty>
 					<script>
 						<groovy>
@@ -723,7 +730,7 @@
 					<json library="Jackson"/>
 				</marshal>
 				<doCatch>
-					<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
+					<exception>org.apache.camel.http.base.HttpOperationFailedException</exception>
 					<to uri="log:ru.seventech.esb.technoprom.getArchive.v2.error?showAll=true"/>
 					<setHeader name="Exchange.HTTP_RESPONSE_CODE">
 						<constant>400</constant>
@@ -736,6 +743,7 @@
 		</route>
 
 		<route id="direct:getDocumentRoute">
+			<from uri="direct:getDocumentRoute"/>
 			<setProperty name="methodName">
 				<simple>getDocument</simple>
 			</setProperty>
@@ -745,7 +753,7 @@
 				<method ref="authService" method="getToken"/>
 			</setProperty>
 			<setProperty name="getDocumentUrl">
-				<simple>{{env:url_getDocument_v2}}</simple>
+				<simple>{{url_getDocument_v2}}</simple>
 			</setProperty>
 			<setProperty name="getDocumentWithParametersUrl">
 				<groovy>
@@ -768,6 +776,7 @@
 		</route>
 
 		<route id="direct:getConsumerRoute">
+			<from uri="direct:getConsumerRoute"/>
 			<to uri="log:ru.seventech.esb.technoprom.getConsumer.v2.begin?showAll=false"/>
 			<setProperty name="rosrgatewayToken">
 				<method ref="authService" method="getToken"/>
@@ -779,18 +788,19 @@
 			<setHeader name="CamelHttpMethod">
 				<constant>GET</constant>
 			</setHeader>
-			<toD uri="https://{{env:url_getConsumer_v2}}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
+			<toD uri="https://{{url_getConsumer_v2}}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
 			<to uri="log:ru.seventech.esb.technoprom.getConsumer.v2.end?showAll=false"/>
 		</route>
 
 		<route id="direct:onlineObjectsRoute">
+			<from uri="direct:onlineObjectsRoute"/>
 			<to uri="log:ru.seventech.esb.technoprom.online.objects.v2.begin?showAll=false"/>
 			<setProperty name="rosrgatewayToken">
 				<method ref="authService" method="getToken"/>
 			</setProperty>
 			<doTry>
 				<setProperty name="objectsUrl">
-					<simple>{{env:url_objects_v2}}</simple>
+					<simple>{{url_objects_v2}}</simple>
 				</setProperty>
 				<setProperty name="objectsWithParametersUrl">
 					<groovy>
@@ -821,7 +831,7 @@
 				<toD uri="https://${exchangeProperty.objectsWithParametersUrl}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
 				<to uri="log:ru.seventech.esb.technoprom.online.objects.v2.end?showAll=false"/>
 				<doCatch>
-					<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
+					<exception>org.apache.camel.http.base.HttpOperationFailedException</exception>
 					<to uri="log:ru.seventech.esb.technoprom.online.objects.v2.error?showAll=true"/>
 					<setHeader name="Exchange.HTTP_RESPONSE_CODE">
 						<constant>400</constant>
@@ -834,13 +844,14 @@
 		</route>
 
 		<route id="direct:onlineRegionsRoute">
+			<from uri="direct:onlineRegionsRoute"/>
 			<to uri="log:ru.seventech.esb.technoprom.online.regions.v2.begin?showAll=false"/>
 			<setProperty name="rosrgatewayToken">
 				<method ref="authService" method="getToken"/>
 			</setProperty>
 			<doTry>
 				<setProperty name="regionsUrl">
-					<simple>{{env:url_regions_v2}}</simple>
+					<simple>{{url_regions_v2}}</simple>
 				</setProperty>
 				<setProperty name="regionsWithParametersUrl">
 					<groovy>
@@ -861,7 +872,7 @@
 				<toD uri="https://${exchangeProperty.regionsWithParametersUrl}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
 				<to uri="log:ru.seventech.esb.technoprom.online.regions.v2.end?showAll=false"/>
 				<doCatch>
-					<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
+					<exception>org.apache.camel.http.base.HttpOperationFailedException</exception>
 					<to uri="log:ru.seventech.esb.technoprom.online.regions.v2.error?showAll=true"/>
 					<setHeader name="Exchange.HTTP_RESPONSE_CODE">
 						<constant>400</constant>
@@ -874,13 +885,14 @@
 		</route>
 
 		<route id="direct:onlineDistrictsRoute">
+			<from uri="direct:onlineDistrictsRoute"/>
 			<to uri="log:ru.seventech.esb.technoprom.online.districts.v2.begin?showAll=false"/>
 			<setProperty name="rosrgatewayToken">
 				<method ref="authService" method="getToken"/>
 			</setProperty>
 			<doTry>
 				<setProperty name="districtsUrl">
-					<simple>{{env:url_districts_v2}}</simple>
+					<simple>{{url_districts_v2}}</simple>
 				</setProperty>
 				<setProperty name="districtsWithParametersUrl">
 					<groovy>
@@ -902,7 +914,7 @@
 				<toD uri="https://${exchangeProperty.districtsWithParametersUrl}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
 				<to uri="log:ru.seventech.esb.technoprom.online.districts.v2.end?showAll=false"/>
 				<doCatch>
-					<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
+					<exception>org.apache.camel.http.base.HttpOperationFailedException</exception>
 					<to uri="log:ru.seventech.esb.technoprom.online.districts.v2.error?showAll=true"/>
 					<setHeader name="Exchange.HTTP_RESPONSE_CODE">
 						<constant>400</constant>
@@ -915,13 +927,14 @@
 		</route>
 
 		<route id="direct:onlineObjectRoute">
+			<from uri="direct:onlineObjectRoute"/>
 			<to uri="log:ru.seventech.esb.technoprom.online.object.v2.begin?showAll=false"/>
 			<setProperty name="rosrgatewayToken">
 				<method ref="authService" method="getToken"/>
 			</setProperty>
 			<doTry>
 				<setProperty name="objectUrl">
-					<simple>{{env:url_object_v2}}</simple>
+					<simple>{{url_object_v2}}</simple>
 				</setProperty>
 				<setProperty name="objectWithParametersUrl">
 					<groovy>
@@ -943,7 +956,7 @@
 				<toD uri="https://${exchangeProperty.objectWithParametersUrl}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
 				<to uri="log:ru.seventech.esb.technoprom.online.object.v2.end?showAll=false"/>
 				<doCatch>
-					<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
+					<exception>org.apache.camel.http.base.HttpOperationFailedException</exception>
 					<to uri="log:ru.seventech.esb.technoprom.online.object.v2.error?showAll=true"/>
 					<setHeader name="Exchange.HTTP_RESPONSE_CODE">
 						<constant>400</constant>
@@ -956,13 +969,14 @@
 		</route>
 
 		<route id="direct:orgsRoute">
+			<from uri="direct:orgsRoute"/>
 			<to uri="log:ru.seventech.esb.technoprom.orgs.v2.begin?showAll=false"/>
 			<setProperty name="rosrgatewayToken">
 				<method ref="authService" method="getToken"/>
 			</setProperty>
 			<doTry>
 				<setProperty name="objectUrl">
-					<simple>{{env:url_orgs_v2}}</simple>
+					<simple>{{url_orgs_v2}}</simple>
 				</setProperty>
 				<removeHeaders pattern="*"/>
 				<setHeader name="Authorization">
@@ -974,7 +988,7 @@
 				<toD uri="https://${exchangeProperty.objectUrl}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
 				<to uri="log:ru.seventech.esb.technoprom.orgs.v2.end?showAll=false"/>
 				<doCatch>
-					<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
+					<exception>org.apache.camel.http.base.HttpOperationFailedException</exception>
 					<to uri="log:ru.seventech.esb.technoprom.orgs.v2.error?showAll=true"/>
 					<setHeader name="Exchange.HTTP_RESPONSE_CODE">
 						<constant>400</constant>
@@ -987,13 +1001,14 @@
 		</route>
 
 		<route id="direct:agentsRoute">
+			<from uri="direct:agentsRoute"/>
 			<to uri="log:ru.seventech.esb.technoprom.agents.v2.begin?showAll=false"/>
 			<setProperty name="rosrgatewayToken">
 				<method ref="authService" method="getToken"/>
 			</setProperty>
 			<doTry>
 				<setProperty name="objectUrl">
-					<simple>{{env:url_agents_v2}}</simple>
+					<simple>{{url_agents_v2}}</simple>
 				</setProperty>
 				<removeHeaders pattern="*"/>
 				<setHeader name="Authorization">
@@ -1005,7 +1020,7 @@
 				<toD uri="https://${exchangeProperty.objectUrl}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
 				<to uri="log:ru.seventech.esb.technoprom.agents.v2.end?showAll=false"/>
 				<doCatch>
-					<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
+					<exception>org.apache.camel.http.base.HttpOperationFailedException</exception>
 					<to uri="log:ru.seventech.esb.technoprom.agents.v2.error?showAll=true"/>
 					<setHeader name="Exchange.HTTP_RESPONSE_CODE">
 						<constant>400</constant>
@@ -1018,13 +1033,14 @@
 		</route>
 
 		<route id="direct:restartRoute">
+			<from uri="direct:restartRoute"/>
 			<to uri="log:ru.seventech.esb.technoprom.restart.v2.begin?showAll=false"/>
 			<setProperty name="rosrgatewayToken">
 				<method ref="authService" method="getToken"/>
 			</setProperty>
 			<doTry>
 				<setProperty name="objectUrl">
-					<simple>{{env:url_restart_v2}}</simple>
+					<simple>{{url_restart_v2}}</simple>
 				</setProperty>
 				<setProperty name="objectWithParametersUrl">
 					<groovy>
@@ -1041,7 +1057,7 @@
 				<toD uri="https://${exchangeProperty.objectWithParametersUrl}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
 				<to uri="log:ru.seventech.esb.technoprom.restart.v2.end?showAll=false"/>
 				<doCatch>
-					<exception>org.apache.camel.http.common.HttpOperationFailedException</exception>
+					<exception>org.apache.camel.http.base.HttpOperationFailedException</exception>
 					<to uri="log:ru.seventech.esb.technoprom.restart.v2.error?showAll=true"/>
 					<setHeader name="Exchange.HTTP_RESPONSE_CODE">
 						<constant>400</constant>
@@ -1063,7 +1079,7 @@
 			</setProperty>
 			<!--Saving image-->
 			<setProperty name="attachDocumentUrl">
-				<simple>{{env:url_attachDocument_v2}}</simple>
+				<simple>{{url_attachDocument_v2}}</simple>
 			</setProperty>
 			<setProperty name="attachDocumentUrlWithUid">
 				<groovy>
@@ -1100,7 +1116,7 @@
 			<to uri="log:ru.seventech.esb.technoprom.saveDocument.attachDocument.v2.afterRequest?showAll=false"/>
 			<!--Saving signature-->
 			<setProperty name="attachSignatureUrl">
-				<simple>{{env:url_attachSignature_v2}}</simple>
+				<simple>{{url_attachSignature_v2}}</simple>
 			</setProperty>
 			<setProperty name="attachSignatureUrlWithUid">
 				<groovy>
@@ -1270,7 +1286,7 @@
 										<groovy>exchange.properties.documents.get(exchange.properties.outerLoopIndex).get("sigFileUID").get(exchange.properties.innerLoopIndex)</groovy>
 									</setProperty>
 									<setProperty name="attachSignatureUrl">
-										<simple>{{env:url_attachSignature_v2}}</simple>
+										<simple>{{url_attachSignature_v2}}</simple>
 									</setProperty>
 									<setProperty name="attachSignatureUrlWithUid">
 										<groovy>
@@ -1317,7 +1333,7 @@
 									<groovy>exchange.properties.documents.get(exchange.properties.CamelLoopIndex).get("sigFileUID")</groovy>
 								</setProperty>
 								<setProperty name="attachSignatureUrl">
-									<simple>{{env:url_attachSignature_v2}}</simple>
+									<simple>{{url_attachSignature_v2}}</simple>
 								</setProperty>
 								<setProperty name="attachSignatureUrlWithUid">
 									<groovy>
@@ -1369,7 +1385,7 @@
 				<constant>GET</constant>
 			</setHeader>
 			<setProperty name="getPackageUrl">
-				<simple>{{env:url_getPackage_v2}}</simple>
+				<simple>{{url_getPackage_v2}}</simple>
 			</setProperty>
 			<setProperty name="getPackageUrlWithUid">
 				<groovy>
@@ -1389,7 +1405,7 @@
 				<simple>${body}</simple>
 			</setProperty>
 			<setProperty name="createZipUrl">
-				<simple>{{env:url_createZip_v2}}</simple>
+				<simple>{{url_createZip_v2}}</simple>
 			</setProperty>
 			<setProperty name="createZipUrlWithUid">
 				<groovy>
@@ -1417,7 +1433,7 @@
       <toD uri="https://${exchangeProperty.createZipUrlWithUid}?httpClientConfigurer=trustAllHttpClientConfigurer"/>
 			<to uri="log:ru.seventech.esb.technoprom.addApplication.v2.createZip.afterRequest?showAll=true"/>
 			<setProperty name="sendZipUrl">
-				<simple>{{env:url_sendZip_v2}}</simple>
+				<simple>{{url_sendZip_v2}}</simple>
 			</setProperty>
 			<setProperty name="sendZipUrlWithUid">
 				<groovy>
