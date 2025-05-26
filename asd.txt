@@ -1,10 +1,1 @@
-Invoke-RestMethod -Uri "https://id-ftest.ahmfl.ru/auth/realms/internal-dom-idm/protocol/openid-connect/token" `
--Method POST `
--ContentType "application/x-www-form-urlencoded" `
--Body @{
-    grant_type = "password"
-    client_id = "app-dom-gate-rr-adapter"  # Проверьте точность названия клиента
-    username = "svc_apiks_rr"
-    password = "uelhpuvah5TSKUPaeCso"
-    scope = "openid"
-}
+привет, не против если я пойду в отпуск с 11 по 25 августа? Это не по графику, но по графику сейчас как раз много пересечений в июле. +хотел взять 3 дня в июне 9-11
