@@ -1,1 +1,10 @@
-Route: ru.seventech.esb.technoprom.saveDocument.v2 shutdown complete, was consuming from: direct://ru.seventech.esb.technoprom.saveDocument.v2
+Invoke-RestMethod -Uri "https://id-ftest.ahmfl.ru/auth/realms/internal-dom-idm/protocol/openid-connect/token" `
+-Method POST `
+-ContentType "application/x-www-form-urlencoded" `
+-Body @{
+    grant_type = "password"
+    client_id = "app-dom-gate-rr-adapter"  # Проверьте точность названия клиента
+    username = "svc_apiks_rr"
+    password = "uelhpuvah5TSKUPaeCso"
+    scope = "openid"
+}
