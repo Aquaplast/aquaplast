@@ -1,14 +1,91 @@
-мая 27, 2025 1:42:44 AM org.apache.coyote.http11.Http11Processor service
-INFO: Error parsing HTTP request header
- Note: further occurrences of HTTP request parsing errors will be logged at DEBUG level.
-java.lang.IllegalArgumentException: Invalid character found in method name [0x160x030x010x070x060x010x000x070x020x030x03?0xf9v0xbe0xd80x030xf30x0a0xf90x96 ]. HTTP method names must be tokens
-	at org.apache.coyote.http11.Http11InputBuffer.parseRequestLine(Http11InputBuffer.java:407)
-	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:264)
-	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63)
-	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:894)
-	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1740)
-	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52)
-	at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1191)
-	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:659)
-	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:61)
-	at java.base/java.lang.Thread.run(Thread.java:1623)
+server:
+  port: 8080
+
+spring:
+  main:
+    allow-circular-references: true
+  application:
+    name: gate-rr-adapter-preprod
+    security:
+      oauth2:
+        client:
+          registration.dom:
+            client-id: client
+            client-secret: "DfnyeaQYIK1ChAXaTsxcpyaMPkEpzqMI"
+            authorization-grant-type: client_credentials
+            scope: openid
+          provider:
+            dom:
+              token-uri: http://localhost:8888/realms/master/protocol/openid-connect/token
+  security:
+    enabled: false
+    oauth2:
+      client:
+        registration:
+          dom:
+            username: username
+            password: password
+            client-id: client
+            client-secret: "DfnyeaQYIK1ChAXaTsxcpyaMPkEpzqMI"
+            authorization-grant-type: client_credentials
+            scope: openid
+        provider:
+          dom:
+            token-uri: http://localhost:8888/realms/master/protocol/openid-connect/token
+
+auth:
+  reuse-auth-token: false
+  oauth-provider: dom
+
+management:
+  endpoint:
+    health:
+      show-components: always
+      group:
+        readiness:
+          include: readinessState
+        liveness:
+          include: livenessState
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+
+logging:
+  level:
+    root: INFO
+
+camel:
+  component:
+    servlet:
+      mapping:
+        context-path: "/private/*"
+
+server_port: 8080
+docstore_host_bank: edk-preprod.domrfbank.ru
+docstore_host_dom: lk.ahml.test
+docstore_path: /docstore/api/v2/
+docstore_uploadFile: docstore/api/v1/
+camel_component_servlet_mapping_context_path: /private/*
+url_createPackage_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2
+url_createApplication_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2/%1$s/actions/rr.xml.prepare
+url_createApplication_apix: rr-generate-service.mdlw.ahml.stage/api/integration/v2/%1$s/actions/rr.xml.prepare.APIX
+url_deletePackage_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2/%1$s
+url_addApplication_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2/%1$s/documents
+url_getPackage_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2/%1$s
+url_createZip_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2/%1$s/actions/rr.package.create
+url_sendZip_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2/%1$s/actions/rr.package.send
+url_getArchive_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2/%1$s/package
+url_attachDocument_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2/%1$s/documents/%2$s/image/external
+url_attachSignature_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2/%1$s/documents/%2$s/signature/external
+url_getDocument_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2/%1$s/documents/%2$s/image
+url_getConsumer_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2/consumer
+url_getFiles_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2/%1$s/responses/%2$s/files
+url_downloadFile_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2/%1$s/responses/%2$s/files/%3$s
+url_objects_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2/online/objects?source=%1$s&number=%2$s&region=%3$s&district=%4$s&settlement=%5$s&street=%6$s&house=%7$s&building=%8$s&structure=%9$s&apartment=%10$s&numberType=%11$s
+url_regions_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2/online/regions?source=%1$s
+url_districts_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2/online/districts?source=%1$s&region=%2$s
+url_restart_v2: rr-generate-service.mdlw.ahml.stage/api/integration/requests/%1$s/restart
+url_object_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2/online/object?source=%1$s&objectId=%2$s
+url_orgs_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2/orgs
+url_agents_v2: rr-generate-service.mdlw.ahml.stage/api/integration/v2/agents
