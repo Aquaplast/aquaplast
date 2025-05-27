@@ -1,4 +1,3 @@
-(exclude = {
-    DataFormatComponentAutoConfiguration.class,
-    RestComponentAutoConfiguration.class // Пример
+@SpringBootApplication(exclude = {
+    RestConfigurationDefinitionAutoConfiguration.class,
 })
