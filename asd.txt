@@ -1,12 +1,1 @@
-@Configuration
-public class SecurityConfig {
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/private/**").permitAll()
-                .anyRequest().authenticated()
-            );
-        return http.build();
-    }
-}
+https://gate-rr-adapter-preprod.test.mdlw.domrfbank.ru/private/v2/gate_rr_adapter/createPackage
