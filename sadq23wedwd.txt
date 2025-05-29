@@ -1,2 +1,3 @@
-def index = exchange.getProperty("CamelLoopIndex", Integer.class)
-exchange.properties.responseFiles.get(index)
+<setProperty name="file">
+						<groovy>exchange.properties.responseFiles.get(exchange.properties.CamelLoopIndex)</groovy>
+					</setProperty>
