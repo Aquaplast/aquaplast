@@ -1,4 +1,4 @@
-setProperty name="loopIndex">
+<setProperty name="loopIndex">
     <constant>0</constant>
 </setProperty>
 
