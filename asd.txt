@@ -1,39 +1,55 @@
-    /**
-     * Возвращает список подписей для документа с указанным именем файла
-     * @param filesMap мапа документов и их подписей
-     * @param filename имя файла документа (без подписей)
-     * @return список подписей или null, если документ не найден
-     */
-    public List<MultipartFile> getSignaturesByFilename(Map<MultipartFile, List<MultipartFile>> filesMap, String filename) {
-        if (filesMap == null || filename == null) {
-            return null;
+public boolean hasMainFileForSignature(
+            Map<MultipartFile, List<MultipartFile>> filesMap, 
+            MultipartFile signatureFile) {
+        
+        if (filesMap == null || signatureFile == null) {
+            return false;
         }
 
-        // Ищем документ с указанным именем файла
-        for (Map.Entry<MultipartFile, List<MultipartFile>> entry : filesMap.entrySet()) {
-            MultipartFile doc = entry.getKey();
-            if (doc.getOriginalFilename() != null && 
-                doc.getOriginalFilename().equals(filename)) {
-                return entry.getValue();
-            }
+        String signatureFilename = signatureFile.getOriginalFilename();
+        if (signatureFilename == null || !signatureFilename.endsWith(".sig")) {
+            return false; // Это не файл подписи
         }
 
-        return null;
-    }
+        // Варианты имен главного файла:
+        // 1. Для подписей вида "file.txt.sig" → "file.txt"
+        String mainFilename1 = signatureFilename.replace(".sig", "");
+        
+        // 2. Для подписей вида "file.txt.1.sig" → "file.txt"
+        String mainFilename2 = signatureFilename.replaceAll("\\.\\d+\\.sig$", "");
 
-    /**
-     * Возвращает документ по имени файла (без учета подписей)
-     * @param filesMap мапа документов и их подписей
-     * @param filename имя файла документа
-     * @return найденный документ или null, если не найден
-     */
-    public MultipartFile getDocByFilename(Map<MultipartFile, List<MultipartFile>> filesMap, String filename) {
-        if (filesMap == null || filename == null) {
-            return null;
-        }
-
+        // Проверяем оба варианта
         return filesMap.keySet().stream()
-            .filter(file -> Objects.equals(file.getOriginalFilename(), filename))
-            .findFirst()
-            .orElse(null);
+                .map(MultipartFile::getOriginalFilename)
+                .filter(Objects::nonNull)
+                .anyMatch(name -> name.equals(mainFilename1) || name.equals(mainFilename2));
     }
+
+    /**
+     * Альтернативная версия, которая работает с List<MultipartFile> вместо Map
+     */
+    public boolean hasMainFileForSignature(
+            List<MultipartFile> allFiles,
+            MultipartFile signatureFile) {
+        
+        if (allFiles == null || signatureFile == null) {
+            return false;
+        }
+
+        String signatureFilename = signatureFile.getOriginalFilename();
+        if (signatureFilename == null || !signatureFilename.endsWith(".sig")) {
+            return false;
+        }
+
+        Pattern numberedSigPattern = Pattern.compile("\\.\\d+\\.sig$");
+        
+        String mainFilename = numberedSigPattern.matcher(signatureFilename)
+                .replaceFirst("") // Удаляем ".1.sig", ".2.sig" и т.д.
+                .replace(".sig", ""); // Удаляем просто ".sig"
+
+        return allFiles.stream()
+                .map(MultipartFile::getOriginalFilename)
+                .filter(Objects::nonNull)
+                .anyMatch(name -> name.equals(mainFilename));
+    }
+}
