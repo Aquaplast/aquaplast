@@ -1,1 +1,39 @@
-public List<MultipartFile> getSignaturesByFilename(Map<MultipartFile, List<MultipartFile>> filesMap, String filename) { //TODO: return null; } public MultipartFile getDocByFilename(Map<MultipartFile, List<MultipartFile>> filesMap, String filename) { //TODO: return null; }
+    /**
+     * Возвращает список подписей для документа с указанным именем файла
+     * @param filesMap мапа документов и их подписей
+     * @param filename имя файла документа (без подписей)
+     * @return список подписей или null, если документ не найден
+     */
+    public List<MultipartFile> getSignaturesByFilename(Map<MultipartFile, List<MultipartFile>> filesMap, String filename) {
+        if (filesMap == null || filename == null) {
+            return null;
+        }
+
+        // Ищем документ с указанным именем файла
+        for (Map.Entry<MultipartFile, List<MultipartFile>> entry : filesMap.entrySet()) {
+            MultipartFile doc = entry.getKey();
+            if (doc.getOriginalFilename() != null && 
+                doc.getOriginalFilename().equals(filename)) {
+                return entry.getValue();
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Возвращает документ по имени файла (без учета подписей)
+     * @param filesMap мапа документов и их подписей
+     * @param filename имя файла документа
+     * @return найденный документ или null, если не найден
+     */
+    public MultipartFile getDocByFilename(Map<MultipartFile, List<MultipartFile>> filesMap, String filename) {
+        if (filesMap == null || filename == null) {
+            return null;
+        }
+
+        return filesMap.keySet().stream()
+            .filter(file -> Objects.equals(file.getOriginalFilename(), filename))
+            .findFirst()
+            .orElse(null);
+    }
