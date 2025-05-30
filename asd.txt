@@ -1,3 +1,13 @@
+реализуй private FileDocumentDTO getFileDtoByFilename(List<FileDocumentDTO> files, String filename) {
+        //TODO: did
+        return null;
+    }
+
+    private String getExtSigFileIdByFilename(List<IntegrationDocumentsRequestDTOV3.SignatureDTO> signaturesDTOList, String filename) {
+        //TODO: did
+        return null;
+    }
+
 package ru.domrfbank.evklid.dto.integration;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
