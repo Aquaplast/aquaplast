@@ -1,13 +1,140 @@
-java.lang.IndexOutOfBoundsException: Index 48 out of bounds for length 1
-	at java.base/jdk.internal.util.Preconditions.outOfBounds(Preconditions.java:64)
-	at java.base/jdk.internal.util.Preconditions.outOfBoundsCheckIndex(Preconditions.java:70)
-	at java.base/jdk.internal.util.Preconditions.checkIndex(Preconditions.java:266)
-	at java.base/java.util.Objects.checkIndex(Objects.java:361)
-	at java.base/java.util.ArrayList.get(ArrayList.java:427)
-	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
-	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
-	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
-	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
-	at org.codehaus.groovy.runtime.callsite.PlainObjectMetaMethodSite.doInvoke(PlainObjectMetaMethodSite.java:43)
-	at org.codehaus.groovy.runtime.callsite.PojoMetaMethodSite$PojoCachedMethodSite.invoke(PojoMetaMethodSite.java:191)
-	at org.codehaus.groovy.runtime.callsite.PojoMetaMethodSite.call(PojoMeta
+package ru.domrfbank.evklid.dto.integration;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.media.Schema.RequiredMode;
+import java.util.List;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
+
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
+@Data
+@Schema(description = "Запрос на загрузку файла документа")
+public class IntegrationDocumentsRequestDTOV3 {
+
+    @JsonProperty("requestId")
+    private String requestId;
+
+    @JsonProperty("absClientId")
+    @Schema(description = "Идентификатор из Новой Афины",
+        example = "114317881",
+        requiredMode = Schema.RequiredMode.REQUIRED)
+    private Long absClientId;
+
+    @JsonProperty("contractCode")
+    @Schema(description = "Код договора",
+        example = "114317881",
+        requiredMode = RequiredMode.NOT_REQUIRED)
+    private String contractCode;
+
+    @JsonProperty("documentType")
+    @Schema(description = "Константа категории",
+        example = "114317881",
+        requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+    private String documentType;
+
+    @JsonProperty("absOfficeId")
+    @Schema(description = "Офис",
+        example = "114317881",
+        requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+    private String absOfficeId;
+
+    @JsonProperty("absClientCategory")
+    @Schema(description = "Категория клиента из НА",
+        example = "114317881",
+        requiredMode = Schema.RequiredMode.REQUIRED)
+    private Long absClientCategory;
+
+    @JsonProperty("clientOffice")
+    @Schema(description = "Офис клиента",
+        example = "0000",
+        requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+    private String clientOffice;
+
+    @JsonProperty("groups")
+    @Schema(description = "groups",
+        example = "[0]",
+        requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+    private List<Long> groups;
+
+    @JsonProperty("sourceSystem")
+    @Schema(description = "Код системы источника",
+        example = "001",
+        requiredMode = Schema.RequiredMode.REQUIRED)
+    private String sourceSystem;
+
+    @JsonProperty("files")
+    @Schema(description = "Детальная информация о файлах",
+        requiredMode = Schema.RequiredMode.REQUIRED)
+    private List<FileDocumentDTO> files;
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @Schema(description = "Детальная информация о файле")
+    public static class FileDocumentDTO {
+
+        @JsonProperty("extFileId")
+        @Schema(description = "Идентификатор файла",
+            example = "114317881",
+            requiredMode = RequiredMode.NOT_REQUIRED)
+        private Long extFileId;
+
+        @JsonProperty("fileName")
+        @Schema(description = "Имя файла",
+            example = "114317881",
+            requiredMode = Schema.RequiredMode.REQUIRED)
+        private String fileName;
+
+        @JsonProperty("fileExtension")
+        @Schema(description = "Формат файла",
+            example = "114317881",
+            requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+        private String fileExtension;
+
+        @JsonProperty("beginDate")
+        @Schema(description = "Дата начала действия документа",
+            example = "2023-09-07T12:10:11",
+            requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+        private LocalDateTime beginDate;
+
+        @JsonProperty("endDate")
+        @Schema(description = "Дата окончания действия документа",
+            example = "2024-11-07T12:10:11",
+            requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+        private LocalDateTime endDate;
+
+        @JsonProperty("signatures")
+        @Schema(description = "Детальная информация о подписях",
+            requiredMode = Schema.RequiredMode.REQUIRED)
+        private List<SignatureDTO> signatures;
+
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @Schema(description = "Детальная информация о подписи")
+    public static class SignatureDTO {
+
+        @JsonProperty("sigFileName")
+        @Schema(description = "Наименование файла подписи",
+            example = "114317881",
+            requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+        private String sigFileName;
+
+        @JsonProperty("extSigFileId")
+        @Schema(description = "Внешний ИД подписи",
+            example = "428b1e7c-1c7b-4ed4-a923-b23afbe028e6",
+            requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+        private String extSigFileId;
+    }
+}
