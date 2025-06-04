@@ -1,170 +1,121 @@
-import org.apache.camel.Exchange;
-import org.apache.camel.ExchangePattern;
-import org.apache.camel.Processor;
-import org.apache.camel.builder.AdviceWith;
-import org.apache.camel.builder.AdviceWithRouteBuilder;
-import org.apache.camel.component.mock.MockEndpoint;
-import org.apache.camel.http.base.HttpOperationFailedException;
-import org.apache.camel.test.spring.CamelSpringTestSupport;
-import org.junit.Before;
-import org.junit.Test;
-import org.springframework.context.support.AbstractApplicationContext;
-import org.springframework.context.support.ClassPathXmlApplicationContext;
-
-import java.util.HashMap;
-import java.util.Map;
-
-public class CamelRoutesXmlTest extends CamelSpringTestSupport {
-
-    @Override
-    protected AbstractApplicationContext createApplicationContext() {
-        return new ClassPathXmlApplicationContext("camel-routes.xml");
-    }
-
-    @Override
-    protected RoutesBuilder createRouteBuilder() throws Exception {
-        return null; // Используем маршруты из XML
-    }
-
-    @Before
-    public void setUp() throws Exception {
-        super.setUp();
-        
-        // Подменяем реальные HTTP вызовы на mock для всех тестов
-        AdviceWith.adviceWith(context, "direct:ru.seventech.esb.technoprom.createPackage.v2", a -> {
-            a.interceptSendToEndpoint("https://{{url_createPackage_v2}}*")
-             .skipSendToOriginalEndpoint()
-             .to("mock:httpCreatePackage");
-        });
-
-        AdviceWith.adviceWith(context, "direct:getDocumentRoute", a -> {
-            a.interceptSendToEndpoint("https://{{url_getDocument_v2}}*")
-             .skipSendToOriginalEndpoint()
-             .to("mock:httpGetDocument");
-        });
-
-        // Подменяем вызовы к authService
-        context.getRegistry().bind("authService", new AuthServiceMock());
-    }
-
-    @Test
-    public void testDocsEndpoint() throws Exception {
-        MockEndpoint resultMock = getMockEndpoint("mock:result");
-        resultMock.expectedMessageCount(1);
-
-        template.sendBody("direct:ru.seventech.esb.router.docs.listener.v2", null);
-
-        assertMockEndpointsSatisfied();
-    }
-
-    @Test
-    public void testCreatePackageRoute_Success() throws Exception {
-        String jsonRequest = "{\"packageType\":\"TYPE\",\"packageData\":{},\"orgId\":1,\"agentId\":1}";
-        
-        MockEndpoint httpMock = getMockEndpoint("mock:httpCreatePackage");
-        httpMock.expectedMessageCount(1);
-        httpMock.expectedHeaderReceived("Authorization", "mocked-token");
-        
-        Exchange exchange = template.send("direct:ru.seventech.esb.technoprom.createPackage.v2", 
-            ExchangePattern.InOut, 
-            new Processor() {
-                @Override
-                public void process(Exchange exchange) throws Exception {
-                    exchange.getIn().setBody(jsonRequest);
-                }
-            });
-        
-        assertMockEndpointsSatisfied();
-        assertNotNull(exchange.getMessage().getBody());
-    }
-
-    @Test
-    public void testCreatePackageRoute_HttpError() throws Exception {
-        String jsonRequest = "{\"packageType\":\"TYPE\",\"packageData\":{},\"orgId\":1,\"agentId\":1}";
-        
-        getMockEndpoint("mock:httpCreatePackage")
-            .whenAnyExchangeReceived(exchange -> {
-                throw new HttpOperationFailedException("http://test", 400, "Bad Request", null, null);
-            });
-        
-        Exchange exchange = template.send("direct:ru.seventech.esb.technoprom.createPackage.v2", 
-            ExchangePattern.InOut, 
-            new Processor() {
-                @Override
-                public void process(Exchange exchange) throws Exception {
-                    exchange.getIn().setBody(jsonRequest);
-                }
-            });
-        
-        assertEquals(400, exchange.getMessage().getHeader(Exchange.HTTP_RESPONSE_CODE));
-        assertNotNull(exchange.getMessage().getBody());
-    }
-
-    @Test
-    public void testGetDocumentRoute() throws Exception {
-        Map<String, Object> headers = new HashMap<>();
-        headers.put("packageId", "123");
-        headers.put("documentId", "456");
-        headers.put("Authorization", "Bearer test-token");
-        
-        MockEndpoint httpMock = getMockEndpoint("mock:httpGetDocument");
-        httpMock.expectedMessageCount(1);
-        httpMock.expectedHeaderReceived("CamelHttpMethod", "GET");
-        
-        template.sendBodyAndHeaders("direct:getDocumentRoute", null, headers);
-        
-        assertMockEndpointsSatisfied();
-    }
-
-    @Test
-    public void testLogMethodTiming() throws Exception {
-        MockEndpoint logEndpoint = getMockEndpoint("mock:log");
-        logEndpoint.expectedMessageCount(1);
-        
-        Exchange exchange = new DefaultExchange(context);
-        exchange.setProperty("methodName", "testMethod");
-        exchange.setProperty("methodStartTime", "2023-01-01 00:00:00.000");
-        exchange.setProperty("executionTimeMs", 100L);
-        exchange.setProperty("logInfo", "test info");
-        
-        template.send("direct:logMethodTiming", exchange);
-        
-        assertMockEndpointsSatisfied();
-    }
-
-    // Mock для authService
-    private static class AuthServiceMock {
-        public String getToken() {
-            return "mocked-token";
-        }
-    }
-}
-
-=====================
-
-@RunWith(CamelSpringJUnit4ClassRunner.class)
-@ContextConfiguration(locations = {
-    "classpath:camel-routes.xml",
-    "classpath:test-config.xml" // для тестовых bean
-})
-@MockEndpoints("https:*") // Автоматически mock всех HTTP endpoints
-public class CamelRoutesXmlTest extends AbstractJUnit4SpringContextTests {
-
-
-
-=====================
-<beans xmlns="http://www.springframework.org/schema/beans"
-       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-       xsi:schemaLocation="http://www.springframework.org/schema/beans
-       http://www.springframework.org/schema/beans/spring-beans.xsd">
-
-    <bean id="authService" class="com.yourpackage.AuthServiceMock"/>
-    
-    <!-- Подмена HTTP клиента для тестов -->
-    <bean id="trustAllHttpClientConfigurer" class="com.yourpackage.MockHttpClientConfigurer"/>
-</beans>
-=====================
-=====================
-=====================
-=====================
-=====================
+groovy.lang.MissingMethodException: No signature of method: Script_163fbb5e17d48e9163b1b6ba5bd571f1.$() is applicable for argument types: (Script_163fbb5e17d48e9163b1b6ba5bd571f1$_run_closure1) values: [Script_163fbb5e17d48e9163b1b6ba5bd571f1$_run_closure1@60a15f13]
+Possible solutions: is(java.lang.Object), run(), run(), any(), tap(groovy.lang.Closure), use([Ljava.lang.Object;)
+	at org.codehaus.groovy.runtime.ScriptBytecodeAdapter.unwrap(ScriptBytecodeAdapter.java:70)
+	at org.codehaus.groovy.runtime.callsite.PogoMetaClassSite.callCurrent(PogoMetaClassSite.java:80)
+	at org.codehaus.groovy.runtime.callsite.CallSiteArray.defaultCallCurrent(CallSiteArray.java:51)
+	at org.codehaus.groovy.runtime.callsite.AbstractCallSite.callCurrent(AbstractCallSite.java:171)
+	at org.codehaus.groovy.runtime.callsite.AbstractCallSite.callCurrent(AbstractCallSite.java:185)
+	at Script_163fbb5e17d48e9163b1b6ba5bd571f1.run(Script_163fbb5e17d48e9163b1b6ba5bd571f1.groovy:1)
+	at org.apache.camel.language.groovy.GroovyExpression.evaluate(GroovyExpression.java:53)
+	at org.apache.camel.processor.SetPropertyProcessor.process(SetPropertyProcessor.java:47)
+	at org.apache.camel.impl.engine.CamelInternalProcessor.process(CamelInternalProcessor.java:383)
+	at org.apache.camel.processor.Pipeline$PipelineTask.run(Pipeline.java:102)
+	at org.apache.camel.impl.engine.DefaultReactiveExecutor$Worker.executeReactiveWork(DefaultReactiveExecutor.java:196)
+	at org.apache.camel.impl.engine.DefaultReactiveExecutor$Worker.schedule(DefaultReactiveExecutor.java:164)
+	at org.apache.camel.impl.engine.DefaultReactiveExecutor.scheduleMain(DefaultReactiveExecutor.java:59)
+	at org.apache.camel.processor.Pipeline.process(Pipeline.java:163)
+	at org.apache.camel.impl.engine.CamelInternalProcessor.process(CamelInternalProcessor.java:383)
+	at org.apache.camel.impl.engine.DefaultAsyncProcessorAwaitManager.process(DefaultAsyncProcessorAwaitManager.java:81)
+	at org.apache.camel.support.AsyncProcessorSupport.process(AsyncProcessorSupport.java:32)
+	at org.apache.camel.http.common.CamelServlet.doExecute(CamelServlet.java:334)
+	at org.apache.camel.http.common.CamelServlet.doService(CamelServlet.java:229)
+	at org.apache.camel.http.common.CamelServlet.handleService(CamelServlet.java:147)
+	at org.apache.camel.http.common.CamelServlet.service(CamelServlet.java:96)
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:658)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:205)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at org.springframework.security.web.FilterChainProxy.lambda$doFilterInternal$3(FilterChainProxy.java:231)
+	at org.springframework.security.web.ObservationFilterChainDecorator$FilterObservation$SimpleFilterObservation.lambda$wrap$1(ObservationFilterChainDecorator.java:479)
+	at org.springframework.security.web.ObservationFilterChainDecorator$AroundFilterObservation$SimpleAroundFilterObservation.lambda$wrap$1(ObservationFilterChainDecorator.java:340)
+	at org.springframework.security.web.ObservationFilterChainDecorator.lambda$wrapSecured$0(ObservationFilterChainDecorator.java:82)
+	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:128)
+	at org.springframework.security.web.access.intercept.AuthorizationFilter.doFilter(AuthorizationFilter.java:100)
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:240)
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:227)
+	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:137)
+	at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:126)
+	at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:120)
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:240)
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:227)
+	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:137)
+	at org.springframework.security.web.authentication.AnonymousAuthenticationFilter.doFilter(AnonymousAuthenticationFilter.java:100)
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:240)
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:227)
+	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:137)
+	at org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter.doFilter(SecurityContextHolderAwareRequestFilter.java:179)
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:240)
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:227)
+	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:137)
+	at org.springframework.security.web.savedrequest.RequestCacheAwareFilter.doFilter(RequestCacheAwareFilter.java:63)
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:240)
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:227)
+	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:137)
+	at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:107)
+	at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:93)
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:240)
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:227)
+	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:137)
+	at org.springframework.security.web.header.HeaderWriterFilter.doHeadersAfter(HeaderWriterFilter.java:90)
+	at org.springframework.security.web.header.HeaderWriterFilter.doFilterInternal(HeaderWriterFilter.java:75)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:240)
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:227)
+	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:137)
+	at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:82)
+	at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:69)
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:240)
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:227)
+	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:137)
+	at org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter.doFilterInternal(WebAsyncManagerIntegrationFilter.java:62)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:240)
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:227)
+	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:137)
+	at org.springframework.security.web.session.DisableEncodeUrlFilter.doFilterInternal(DisableEncodeUrlFilter.java:42)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:240)
+	at org.springframework.security.web.ObservationFilterChainDecorator$AroundFilterObservation$SimpleAroundFilterObservation.lambda$wrap$0(ObservationFilterChainDecorator.java:323)
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:224)
+	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:137)
+	at org.springframework.security.web.FilterChainProxy.doFilterInternal(FilterChainProxy.java:233)
+	at org.springframework.security.web.FilterChainProxy.doFilter(FilterChainProxy.java:191)
+	at org.springframework.web.filter.DelegatingFilterProxy.invokeDelegate(DelegatingFilterProxy.java:352)
+	at org.springframework.web.filter.DelegatingFilterProxy.doFilter(DelegatingFilterProxy.java:268)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at org.springframework.web.filter.ServerHttpObservationFilter.doFilterInternal(ServerHttpObservationFilter.java:109)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:166)
+	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:90)
+	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:482)
+	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:115)
+	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:93)
+	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:74)
+	at org.apache.catalina.valves.RemoteIpValve.invoke(RemoteIpValve.java:738)
+	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:341)
+	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:391)
+	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63)
+	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:894)
+	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1740)
+	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52)
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1191)
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:659)
+	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:61)
+	at java.base/java.lang.Thread.run(Thread.java:833)
