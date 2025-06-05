@@ -1,14 +1,152 @@
-Создание телеграм бота который в ответ на сообщение с названием валюты возвращает текущий курс валют.
-
-Исопльзовалось решение интегра.
-Настраивалось no-code взаимодействие в интерфейсе INTEGRA и код обработки сообщения был написан на JAVA.
-
-
-
-Хранение информации по документам клиента. 
-Формирование excel отчетов. (Плотно работали с appache poi Jxls)
-
-
-
-
-Когда я пришел на проект, тестовые данные заполнялись вручную в ликвибейз миграциях. Я переделал на загрузку из файлов справочников.
+		<route id="direct:createApplicationRoute">
+			<from uri="direct:createApplicationRoute"/>
+			<to uri="direct:getMethodStartTime"/>
+			<to uri="log:ru.seventech.esb.technoprom.createApplication.v2.start?showAll=true"/>
+			<log message="[ZERO-SIGN-LOG] Get 'createApplication' request with body ${body}"/>
+			<setProperty name="rosrgatewayToken">
+				<method ref="authService" method="getToken"/>
+			</setProperty>
+			<doTry>
+				<to uri="direct:ru.seventech.esb.technoprom.prepareRequest.v2"/>
+				<unmarshal>
+					<json library="Jackson" unmarshalType="java.util.HashMap"/>
+				</unmarshal>
+				<setProperty name="packageId">
+					<simple>${body.get("packageId")}</simple>
+				</setProperty>
+				<setProperty name="createApplicationUrl">
+					<simple>{{url_createApplication_v2}}</simple>
+				</setProperty>
+				<to uri="direct:performCreateApplicationRequest"/>
+				<unmarshal>
+					<json useList="true" library="Jackson" unmarshalType="ru.seventech.esb.technoprom.dto.CreateApplicationResponseDto"/>
+				</unmarshal>
+				<setProperty name="createApplicationResponse">
+					<groovy>
+						import ru.seventech.esb.technoprom.api.CreateApplicationResponse
+						def response = new CreateApplicationResponse()
+						response.setPackageId(Long.valueOf(exchange.properties.packageId))
+						response.setDocuments(exchange.in.body)
+						return response
+					</groovy>
+				</setProperty>
+				<setProperty name="responseFiles">
+					<groovy>exchange.properties.createApplicationResponse.documents</groovy>
+				</setProperty>
+				<to uri="log:ru.seventech.esb.technoprom.createApplication.v2.iteratingFiles?showAll=true"/>
+				<setProperty name="loopIndex_createApplication">
+					<groovy>Integer x = 0; return x</groovy>
+				</setProperty>
+				<loop>
+					<groovy>
+						exchange.properties.responseFiles.size()
+					</groovy>
+					<setProperty name="file">
+						<groovy>
+							return exchange.properties.responseFiles.get((Integer) exchange.properties.loopIndex_createApplication)
+						</groovy>
+					</setProperty>
+					<setProperty name="host_bank">
+						<simple>https://{{docstore_host_bank}}</simple>
+					</setProperty>
+					<setProperty name="host_dom">
+						<simple>https://{{docstore_host_dom}}</simple>
+					</setProperty>
+					<setProperty name="path">
+						<simple>{{docstore_path}}</simple>
+					</setProperty>
+					<choice>
+						<when>
+							<groovy>
+								exchange.properties.file.image != null
+							</groovy>
+							<setProperty name="end">
+								<groovy>exchange.properties.file.image.location.lastIndexOf('/')</groovy>
+							</setProperty>
+							<setProperty name="start">
+								<groovy>exchange.properties.file.image.location.lastIndexOf('/', exchange.properties.end - 1)</groovy>
+							</setProperty>
+							<setProperty name="uuid">
+								<groovy>exchange.properties.file.image.location.substring(exchange.properties.start + 1, exchange.properties.end)</groovy>
+							</setProperty>
+							<script>
+								<groovy>
+									exchange.properties.file.image.setLocation(('1'.equals(exchange.properties.file.consumerId) ? exchange.properties.host_bank : exchange.properties.host_dom) + exchange.properties.path + exchange.properties.uuid)
+								</groovy>
+							</script>
+						</when>
+					</choice>
+					<choice>
+						<when>
+							<groovy>
+								exchange.properties.file.html != null
+							</groovy>
+							<setProperty name="endIndexHtml">
+								<groovy>exchange.properties.file.html.location.lastIndexOf('/')</groovy>
+							</setProperty>
+							<setProperty name="startIndexHtml">
+								<groovy>exchange.properties.file.html.location.lastIndexOf('/', exchange.properties.endIndexHtml - 1)</groovy>
+							</setProperty>
+							<setProperty name="uuidHtml">
+								<groovy>exchange.properties.file.html.location.substring(exchange.properties.startIndexHtml + 1, exchange.properties.endIndexHtml)</groovy>
+							</setProperty>
+							<script>
+								<groovy>
+									exchange.properties.file.html.setLocation(('1'.equals(exchange.properties.file.consumerId) ? exchange.properties.host_bank : exchange.properties.host_dom) + exchange.properties.path + exchange.properties.uuidHtml)
+								</groovy>
+							</script>
+						</when>
+					</choice>
+					<setProperty name="loopIndex_createApplication">
+						<groovy>((Integer) exchange.properties.loopIndex_createApplication) + 1</groovy>
+					</setProperty>
+				</loop>
+				<setBody>
+					<groovy>exchange.properties.createApplicationResponse</groovy>
+				</setBody>
+				<setProperty name="logInfo">
+					<simple>${exchangeProperty.createApplicationResponse}</simple>
+				</setProperty>
+				<setProperty name="methodName">
+					<simple>createApplication</simple>
+				</setProperty>
+				<to uri="direct:logMethodTiming"/>
+				<to uri="log:ru.seventech.esb.technoprom.createApplication.v2.end?showAll=true"/>
+				<marshal>
+					<json library="Jackson"/>
+				</marshal>
+				<doCatch>
+					<exception>org.apache.camel.http.base.HttpOperationFailedException</exception>
+					<setProperty name="httpResponseCode">
+						<groovy>${exception.getStatusCode()}</groovy>
+					</setProperty>
+					<to uri="log:ru.seventech.esb.technoprom.performPostRequest.httpError?showAll=true"/>
+					<setHeader name="Exchange.HTTP_RESPONSE_CODE">
+						<simple>${exchangeProperty.httpResponseCode}</simple>
+					</setHeader>
+					<setBody>
+						<simple>${exception.getResponseBody()}</simple>
+					</setBody>
+					<stop/>
+				</doCatch>
+				<doCatch>
+					<exception>java.net.SocketTimeoutException</exception>
+					<throwException exceptionType="java.net.SocketTimeoutException"/>
+				</doCatch>
+				<doCatch>
+					<exception>java.net.SocketException</exception>
+					<throwException exceptionType="java.net.SocketException"/>
+				</doCatch>
+				<doCatch>
+					<exception>java.lang.Exception</exception>
+					<to uri="log:ru.seventech.esb.technoprom.performPostRequest.generalError?showAll=true"/>
+					<setHeader name="Exchange.HTTP_RESPONSE_CODE">
+						<constant>500</constant>
+					</setHeader>
+					<setBody>
+						<simple>Error processing request: ${exception.message}</simple>
+					</setBody>
+					<stop/>
+				</doCatch>
+			</doTry>
+		</route>
