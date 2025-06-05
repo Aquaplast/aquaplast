@@ -1,11 +1,14 @@
-<setBody>
-  <groovy>
-    import ru.seventech.esb.technoprom.dto.DocumentRequestUidDto
-    def doc = exchange.properties.document
-    def imageLocation = doc?.image?.location
-    if (imageLocation) {
-      return new DocumentRequestUidDto(imageLocation)
-    }
-    return null
-  </groovy>
-</setBody>
+Создание телеграм бота который в ответ на сообщение с названием валюты возвращает текущий курс валют.
+
+Исопльзовалось решение интегра.
+Настраивалось no-code взаимодействие в интерфейсе INTEGRA и код обработки сообщения был написан на JAVA.
+
+
+
+Хранение информации по документам клиента. 
+Формирование excel отчетов. (Плотно работали с appache poi Jxls)
+
+
+
+
+Когда я пришел на проект, тестовые данные заполнялись вручную в ликвибейз миграциях. Я переделал на загрузку из файлов справочников.
