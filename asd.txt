@@ -1,6 +1,1 @@
- // Проверяем, что нет ни одного нумерованного sig файла для этого основного файла
-        boolean hasNumberedSig = files.stream()
-            .map(MultipartFile::getOriginalFilename)
-            .anyMatch(name -> name.startsWith(mainFilename + ".") && 
-                    name.matches(".*\\.\\d+\\.sig$") && 
-                    !name.equals(signatureFilename));
+!signatureFilename.matches(".*\\.\\d+\\.sig$")
