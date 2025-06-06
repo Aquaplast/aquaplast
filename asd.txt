@@ -1,14 +1,6 @@
-private void validateSignatureFile(String signatureFilename, Map<String, MultipartFile> fileByName, List<MultipartFile> files) {
-        if (!hasMainFileForSignature(files, signatureFilename)) {
-            throw new IllegalArgumentException("Signature file " + signatureFilename + " has no corresponding main file");
-        }
-        // Проверяем, что для ненумерованного .sig отсутствуют нумерованные sig
-        if (signatureFilename.endsWith(".sig") && !signatureFilename.endsWith(".1.sig")) {
-            String mainFilename = signatureFilename.replace(".sig", "");
-            String firstNumberedSig = mainFilename + ".1.sig";
-            if (fileByName.containsKey(firstNumberedSig)) {
-                throw new IllegalArgumentException("Mixed signature formats for file " + mainFilename +
-                    ". Cannot have both .sig and numbered signatures");
-            }
-        }
-    }
+ // Проверяем, что нет ни одного нумерованного sig файла для этого основного файла
+        boolean hasNumberedSig = files.stream()
+            .map(MultipartFile::getOriginalFilename)
+            .anyMatch(name -> name.startsWith(mainFilename + ".") && 
+                    name.matches(".*\\.\\d+\\.sig$") && 
+                    !name.equals(signatureFilename));
