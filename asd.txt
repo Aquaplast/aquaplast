@@ -1,38 +1,41 @@
-Добавить контроль на беке
-у файла может быть один или несколько sig файлов
-если sig файл один, то он может иметь расширение .sig или .1.sig
-если sig файлов несколько, то они дожны иметь расширение с номером .1.sig, .2.sig и тд (не может быть .sig)
-не должно быть файла подписи .sig или .n.sig без файла к которому они относятся
-
-если контроль не пройден, то возвращать ошибку
-
 public Map<MultipartFile, List<MultipartFile>> mapFilesToSignatures(List<MultipartFile> files) {
-        checkUniqueFilenames(files);
-        Map<MultipartFile, List<MultipartFile>> result = new HashMap<>();
-        Map<String, MultipartFile> fileByName = new HashMap<>();
+    checkUniqueFilenames(files);
+    Map<MultipartFile, List<MultipartFile>> result = new HashMap<>();
+    Map<String, MultipartFile> fileByName = new HashMap<>();
 
-        // Сначала собираем все файлы в мапу по именам
-        for (MultipartFile file : files) {
-            fileByName.put(file.getOriginalFilename(), file);
+    // Сначала собираем все файлы в мапу по именам
+    for (MultipartFile file : files) {
+        fileByName.put(file.getOriginalFilename(), file);
+    }
+
+    // Проверяем все сигнатурные файлы на валидность
+    for (MultipartFile file : files) {
+        String filename = file.getOriginalFilename();
+        if (fileIsSignature(filename)) {
+            validateSignatureFile(filename, fileByName);
         }
+    }
 
-        // Для каждого файла ищем его подписи
-        for (MultipartFile file : files) {
-            String filename = file.getOriginalFilename();
-            if (fileIsSignature(filename) && hasMainFileForSignature(files, filename)) {
-                continue;
+    // Для каждого файла ищем его подписи
+    for (MultipartFile file : files) {
+        String filename = file.getOriginalFilename();
+        if (fileIsSignature(filename)) {
+            continue;
+        }
+        
+        List<MultipartFile> signatures = new ArrayList<>();
+        String baseSignatureName = filename + ".sig";
+        String firstNumberedSignatureName = filename + ".1.sig";
+
+        // Проверяем случай, когда есть и .sig и .1.sig - это ошибка
+        if (fileByName.containsKey(baseSignatureName) {
+            if (fileByName.containsKey(firstNumberedSignatureName)) {
+                throw new IllegalArgumentException("For file " + filename + 
+                    " both .sig and .1.sig signatures exist. Only one format is allowed.");
             }
-            List<MultipartFile> signatures = new ArrayList<>();
-
-            // Проверяем наличие базовой подписи (filename.sig)
-            String baseSignatureName = filename + ".sig";
-            if (fileByName.containsKey(baseSignatureName)) {
-                signatures.add(fileByName.get(baseSignatureName));
-                result.put(file, signatures);
-                continue;
-            }
-
-            // Проверяем наличие нумерованных подписей (filename.1.sig, filename.2.sig и т.д.)
+            signatures.add(fileByName.get(baseSignatureName));
+        } else {
+            // Ищем нумерованные подписи
             int counter = 1;
             while (true) {
                 String numberedSignatureName = filename + "." + counter + ".sig";
@@ -43,9 +46,56 @@ public Map<MultipartFile, List<MultipartFile>> mapFilesToSignatures(List<Multipa
                     break;
                 }
             }
-
-            result.put(file, signatures);
         }
 
-        return result;
+        if (!signatures.isEmpty()) {
+            result.put(file, signatures);
+        }
     }
+
+    return result;
+}
+
+private void validateSignatureFile(String signatureFilename, Map<String, MultipartFile> fileByName) {
+    // Проверяем, что сигнатурный файл не существует без основного файла
+    String mainFilename = getMainFilenameFromSignature(signatureFilename);
+    if (!fileByName.containsKey(mainFilename)) {
+        throw new IllegalArgumentException("Signature file " + signatureFilename + 
+            " has no corresponding main file");
+    }
+
+    // Проверяем, что если есть несколько сигнатур, то они нумерованные
+    if (signatureFilename.endsWith(".sig") && !signatureFilename.endsWith(".1.sig")) {
+        String firstNumberedSig = mainFilename + ".1.sig";
+        if (fileByName.containsKey(firstNumberedSig)) {
+            throw new IllegalArgumentException("Mixed signature formats for file " + mainFilename + 
+                ". Cannot have both .sig and numbered signatures");
+        }
+    }
+}
+
+private String getMainFilenameFromSignature(String signatureFilename) {
+    if (signatureFilename.endsWith(".sig")) {
+        if (signatureFilename.matches(".*\\.\\d+\\.sig$")) {
+            // Нумерованная сигнатура (например .1.sig, .2.sig)
+            return signatureFilename.replaceFirst("\\.\\d+\\.sig$", "");
+        } else {
+            // Базовая сигнатура (.sig)
+            return signatureFilename.replace(".sig", "");
+        }
+    }
+    throw new IllegalArgumentException("Invalid signature filename: " + signatureFilename);
+}
+
+private boolean fileIsSignature(String filename) {
+    return filename.endsWith(".sig");
+}
+
+private void checkUniqueFilenames(List<MultipartFile> files) {
+    Set<String> filenames = new HashSet<>();
+    for (MultipartFile file : files) {
+        if (!filenames.add(file.getOriginalFilename())) {
+            throw new IllegalArgumentException("Duplicate filename: " + file.getOriginalFilename());
+        }
+    }
+}
