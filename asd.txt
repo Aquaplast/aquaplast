@@ -1,1 +1,3 @@
-!signatureFilename.matches(".*\\.\\d+\\.sig$")
+INSERT INTO files (document_version_id, content_id, created_at, author, content_size, filename, file_extension, ext_file_id, source_system, begin_date, end_date)
+            SELECT id, content_id, created_at, author, content_size, filename, file_extension, abs_file_id, source_system, begin_date, end_date
+            FROM temp_document_versions;
