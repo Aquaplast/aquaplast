@@ -1,3 +1,176 @@
-INSERT INTO files (document_version_id, content_id, created_at, author, content_size, filename, file_extension, ext_file_id, source_system, begin_date, end_date)
+<changeSet id="90" author="dmitriy.i.tarasov@domrf.ru" context="v2_0">
+        <!-- Создаем временные таблицы для хранения данных из старых таблиц -->
+        <createTable tableName="temp_document_versions">
+            <column name="id" type="BIGINT">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="document_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="content_id" type="UUID">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="author" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="content_size" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="filename" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="file_extension" type="VARCHAR(50)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="abs_file_id" type="BIGINT">
+                <constraints nullable="true"/>
+            </column>
+            <column name="source_system" type="VARCHAR(255)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="begin_date" type="TIMESTAMP"/>
+            <column name="end_date" type="TIMESTAMP"/>
+        </createTable>
+
+        <!-- Переносим данные из старых таблиц во временные -->
+        <sql>
+            INSERT INTO temp_document_versions (id, document_id, content_id, created_at, author, content_size, filename, file_extension, abs_file_id, source_system, begin_date, end_date)
+            SELECT id, document_id, content_id, created_at, author, content_size, filename, file_extension, abs_file_id, source_system, begin_date, end_date
+            FROM document_versions;
+        </sql>
+
+        <!-- Удаляем старые таблицы -->
+        <dropTable tableName="signature"/>
+        <dropTable tableName="document_versions"/>
+
+        <!-- Создаем новые таблицы -->
+        <createTable tableName="document_versions">
+            <column name="id" type="BIGINT" valueComputed="nextval('document_versions_id_seq')" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="document_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="author" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version_number" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="document_versions"
+          baseColumnNames="document_id"
+          referencedTableName="documents"
+          referencedColumnNames="id"
+          constraintName="fk_document_versions_document"/>
+
+        <createSequence sequenceName="files_id_seq"/>
+        <createTable tableName="files">
+            <column name="id" type="BIGINT" valueComputed="nextval('files_id_seq')" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="document_version_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="content_id" type="UUID">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="author" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="content_size" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="filename" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="file_extension" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ext_file_id" type="BIGINT">
+                <constraints nullable="true" unique="false"/>
+            </column>
+            <column name="source_system" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="begin_date" type="TIMESTAMP"/>
+            <column name="end_date" type="TIMESTAMP"/>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="files"
+          baseColumnNames="document_version_id"
+          referencedTableName="document_versions"
+          referencedColumnNames="id"
+          constraintName="fk_files_document_versions"/>
+
+        <createTable tableName="signature">
+            <column name="id" type="BIGINT" valueComputed="nextval('signature_id_seq')" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="file_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="signer" type="VARCHAR(255)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="certificate_start_date" type="TIMESTAMP">
+                <constraints nullable="true"/>
+            </column>
+            <column name="certificate_end_date" type="TIMESTAMP">
+                <constraints nullable="true"/>
+            </column>
+            <column name="sign_date" type="TIMESTAMP">
+                <constraints nullable="true"/>
+            </column>
+            <column name="certificate_issued" type="VARCHAR(255)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="signature_verif" type="BOOLEAN">
+                <constraints nullable="true"/>
+            </column>
+            <column name="signature_file_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ext_sig_file_id" type="UUID">
+                <constraints nullable="true"/>
+            </column>
+            <column name="certificate_number" type="VARCHAR(255)">
+                <constraints nullable="true"/>
+            </column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="signature"
+          baseColumnNames="file_id"
+          referencedTableName="files"
+          referencedColumnNames="id"
+          constraintName="fk_signature_files"/>
+
+        <!-- Переносим данные из временных таблиц в новые -->
+        <sql>
+            INSERT INTO document_versions (id, document_id, version_id, created_at, author, version_number)
+            SELECT id, document_id, gen_random_uuid(), created_at, author,
+            ROW_NUMBER() OVER (PARTITION BY document_id ORDER BY created_at) AS version_number
+            FROM temp_document_versions;
+        </sql>
+
+        <sql>
+            INSERT INTO files (document_version_id, content_id, created_at, author, content_size, filename, file_extension, ext_file_id, source_system, begin_date, end_date)
             SELECT id, content_id, created_at, author, content_size, filename, file_extension, abs_file_id, source_system, begin_date, end_date
             FROM temp_document_versions;
+        </sql>
+
+        <!-- Удаляем временные таблицы -->
+        <dropTable tableName="temp_document_versions"/>
+
+    </changeSet>
