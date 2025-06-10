@@ -1,3 +1,159 @@
-<setProperty name="file">
-						<groovy>exchange.properties.responseFiles.get(exchange.properties.CamelLoopIndex)</groovy>
-					</setProperty>
+import org.apache.camel.Exchange;
+import org.apache.camel.ExchangePattern;
+import org.apache.camel.Processor;
+import org.apache.camel.builder.AdviceWith;
+import org.apache.camel.builder.AdviceWithRouteBuilder;
+import org.apache.camel.component.mock.MockEndpoint;
+import org.apache.camel.http.base.HttpOperationFailedException;
+import org.apache.camel.test.spring.CamelSpringTestSupport;
+import org.junit.Before;
+import org.junit.Test;
+import org.springframework.context.support.AbstractApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+
+import java.util.HashMap;
+import java.util.Map;
+
+public class CamelRoutesXmlTest extends CamelSpringTestSupport {
+
+    @Override
+    protected AbstractApplicationContext createApplicationContext() {
+        return new ClassPathXmlApplicationContext("camel-routes.xml");
+    }
+
+    @Override
+    protected RoutesBuilder createRouteBuilder() throws Exception {
+        return null; // Используем маршруты из XML
+    }
+
+    @Before
+    public void setUp() throws Exception {
+        super.setUp();
+        
+        // Подменяем реальные HTTP вызовы на mock для всех тестов
+        AdviceWith.adviceWith(context, "direct:ru.seventech.esb.technoprom.createPackage.v2", a -> {
+            a.interceptSendToEndpoint("https://{{url_createPackage_v2}}*")
+             .skipSendToOriginalEndpoint()
+             .to("mock:httpCreatePackage");
+        });
+
+        AdviceWith.adviceWith(context, "direct:getDocumentRoute", a -> {
+            a.interceptSendToEndpoint("https://{{url_getDocument_v2}}*")
+             .skipSendToOriginalEndpoint()
+             .to("mock:httpGetDocument");
+        });
+
+        // Подменяем вызовы к authService
+        context.getRegistry().bind("authService", new AuthServiceMock());
+    }
+
+    @Test
+    public void testDocsEndpoint() throws Exception {
+        MockEndpoint resultMock = getMockEndpoint("mock:result");
+        resultMock.expectedMessageCount(1);
+
+        template.sendBody("direct:ru.seventech.esb.router.docs.listener.v2", null);
+
+        assertMockEndpointsSatisfied();
+    }
+
+    @Test
+    public void testCreatePackageRoute_Success() throws Exception {
+        String jsonRequest = "{\"packageType\":\"TYPE\",\"packageData\":{},\"orgId\":1,\"agentId\":1}";
+        
+        MockEndpoint httpMock = getMockEndpoint("mock:httpCreatePackage");
+        httpMock.expectedMessageCount(1);
+        httpMock.expectedHeaderReceived("Authorization", "mocked-token");
+        
+        Exchange exchange = template.send("direct:ru.seventech.esb.technoprom.createPackage.v2", 
+            ExchangePattern.InOut, 
+            new Processor() {
+                @Override
+                public void process(Exchange exchange) throws Exception {
+                    exchange.getIn().setBody(jsonRequest);
+                }
+            });
+        
+        assertMockEndpointsSatisfied();
+        assertNotNull(exchange.getMessage().getBody());
+    }
+
+    @Test
+    public void testCreatePackageRoute_HttpError() throws Exception {
+        String jsonRequest = "{\"packageType\":\"TYPE\",\"packageData\":{},\"orgId\":1,\"agentId\":1}";
+        
+        getMockEndpoint("mock:httpCreatePackage")
+            .whenAnyExchangeReceived(exchange -> {
+                throw new HttpOperationFailedException("http://test", 400, "Bad Request", null, null);
+            });
+        
+        Exchange exchange = template.send("direct:ru.seventech.esb.technoprom.createPackage.v2", 
+            ExchangePattern.InOut, 
+            new Processor() {
+                @Override
+                public void process(Exchange exchange) throws Exception {
+                    exchange.getIn().setBody(jsonRequest);
+                }
+            });
+        
+        assertEquals(400, exchange.getMessage().getHeader(Exchange.HTTP_RESPONSE_CODE));
+        assertNotNull(exchange.getMessage().getBody());
+    }
+
+    @Test
+    public void testGetDocumentRoute() throws Exception {
+        Map<String, Object> headers = new HashMap<>();
+        headers.put("packageId", "123");
+        headers.put("documentId", "456");
+        headers.put("Authorization", "Bearer test-token");
+        
+        MockEndpoint httpMock = getMockEndpoint("mock:httpGetDocument");
+        httpMock.expectedMessageCount(1);
+        httpMock.expectedHeaderReceived("CamelHttpMethod", "GET");
+        
+        template.sendBodyAndHeaders("direct:getDocumentRoute", null, headers);
+        
+        assertMockEndpointsSatisfied();
+    }
+
+    @Test
+    public void testLogMethodTiming() throws Exception {
+        MockEndpoint logEndpoint = getMockEndpoint("mock:log");
+        logEndpoint.expectedMessageCount(1);
+        
+        Exchange exchange = new DefaultExchange(context);
+        exchange.setProperty("methodName", "testMethod");
+        exchange.setProperty("methodStartTime", "2023-01-01 00:00:00.000");
+        exchange.setProperty("executionTimeMs", 100L);
+        exchange.setProperty("logInfo", "test info");
+        
+        template.send("direct:logMethodTiming", exchange);
+        
+        assertMockEndpointsSatisfied();
+    }
+
+    // Mock для authService
+    private static class AuthServiceMock {
+        public String getToken() {
+            return "mocked-token";
+        }
+    }
+}
+
+
+Добавьте в test-config.xml:
+
+
+
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+       http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <bean id="authService" class="com.yourpackage.AuthServiceMock"/>
+    
+    <!-- Подмена HTTP клиента для тестов -->
+    <bean id="trustAllHttpClientConfigurer" class="com.yourpackage.MockHttpClientConfigurer"/>
+</beans>
+
+
