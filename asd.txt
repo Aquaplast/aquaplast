@@ -1,176 +1,147 @@
-<changeSet id="90" author="dmitriy.i.tarasov@domrf.ru" context="v2_0">
-        <!-- Создаем временные таблицы для хранения данных из старых таблиц -->
-        <createTable tableName="temp_document_versions">
-            <column name="id" type="BIGINT">
-                <constraints primaryKey="true" nullable="false"/>
-            </column>
-            <column name="document_id" type="BIGINT">
-                <constraints nullable="false"/>
-            </column>
-            <column name="content_id" type="UUID">
-                <constraints nullable="false" unique="true"/>
-            </column>
-            <column name="created_at" type="TIMESTAMP">
-                <constraints nullable="false"/>
-            </column>
-            <column name="author" type="VARCHAR(255)">
-                <constraints nullable="false"/>
-            </column>
-            <column name="content_size" type="BIGINT">
-                <constraints nullable="false"/>
-            </column>
-            <column name="filename" type="VARCHAR(255)">
-                <constraints nullable="false"/>
-            </column>
-            <column name="file_extension" type="VARCHAR(50)">
-                <constraints nullable="true"/>
-            </column>
-            <column name="abs_file_id" type="BIGINT">
-                <constraints nullable="true"/>
-            </column>
-            <column name="source_system" type="VARCHAR(255)">
-                <constraints nullable="true"/>
-            </column>
-            <column name="begin_date" type="TIMESTAMP"/>
-            <column name="end_date" type="TIMESTAMP"/>
-        </createTable>
+package com.example.camel;
 
-        <!-- Переносим данные из старых таблиц во временные -->
-        <sql>
-            INSERT INTO temp_document_versions (id, document_id, content_id, created_at, author, content_size, filename, file_extension, abs_file_id, source_system, begin_date, end_date)
-            SELECT id, document_id, content_id, created_at, author, content_size, filename, file_extension, abs_file_id, source_system, begin_date, end_date
-            FROM document_versions;
-        </sql>
+import org.apache.camel.CamelContext;
+import org.apache.camel.EndpointInject;
+import org.apache.camel.Exchange;
+import org.apache.camel.ProducerTemplate;
+import org.apache.camel.builder.AdviceWith;
+import org.apache.camel.component.mock.MockEndpoint;
+import org.apache.camel.test.spring.junit5.CamelSpringBootTest;
+import org.apache.camel.test.spring.junit5.MockEndpoints;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import ru.seventech.esb.technoprom.dto.CreatePackageRequestDto;
+import ru.seventech.esb.technoprom.api.CreateApplicationResponse;
 
-        <!-- Удаляем старые таблицы -->
-        <dropTable tableName="signature"/>
-        <dropTable tableName="document_versions"/>
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-        <!-- Создаем новые таблицы -->
-        <createTable tableName="document_versions">
-            <column name="id" type="BIGINT" valueComputed="nextval('document_versions_id_seq')" autoIncrement="true">
-                <constraints primaryKey="true" nullable="false"/>
-            </column>
-            <column name="document_id" type="BIGINT">
-                <constraints nullable="false"/>
-            </column>
-            <column name="version_id" type="UUID">
-                <constraints nullable="false"/>
-            </column>
-            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
-                <constraints nullable="false"/>
-            </column>
-            <column name="author" type="VARCHAR(255)">
-                <constraints nullable="false"/>
-            </column>
-            <column name="version_number" type="BIGINT">
-                <constraints nullable="false"/>
-            </column>
-        </createTable>
-        <addForeignKeyConstraint baseTableName="document_versions"
-          baseColumnNames="document_id"
-          referencedTableName="documents"
-          referencedColumnNames="id"
-          constraintName="fk_document_versions_document"/>
+@SpringBootTest
+@CamelSpringBootTest
+@MockEndpoints("http.*")
+public class CamelRoutesTest {
 
-        <createSequence sequenceName="files_id_seq"/>
-        <createTable tableName="files">
-            <column name="id" type="BIGINT" valueComputed="nextval('files_id_seq')" autoIncrement="true">
-                <constraints primaryKey="true" nullable="false"/>
-            </column>
-            <column name="document_version_id" type="BIGINT">
-                <constraints nullable="false"/>
-            </column>
-            <column name="content_id" type="UUID">
-                <constraints nullable="false" unique="true"/>
-            </column>
-            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
-                <constraints nullable="false"/>
-            </column>
-            <column name="author" type="VARCHAR(255)">
-                <constraints nullable="false"/>
-            </column>
-            <column name="content_size" type="BIGINT">
-                <constraints nullable="false"/>
-            </column>
-            <column name="filename" type="VARCHAR(255)">
-                <constraints nullable="false"/>
-            </column>
-            <column name="file_extension" type="VARCHAR(50)">
-                <constraints nullable="false"/>
-            </column>
-            <column name="ext_file_id" type="BIGINT">
-                <constraints nullable="true" unique="false"/>
-            </column>
-            <column name="source_system" type="VARCHAR(255)">
-                <constraints nullable="false"/>
-            </column>
-            <column name="begin_date" type="TIMESTAMP"/>
-            <column name="end_date" type="TIMESTAMP"/>
-        </createTable>
+    @Autowired
+    private CamelContext camelContext;
 
-        <addForeignKeyConstraint baseTableName="files"
-          baseColumnNames="document_version_id"
-          referencedTableName="document_versions"
-          referencedColumnNames="id"
-          constraintName="fk_files_document_versions"/>
+    @Autowired
+    private ProducerTemplate producerTemplate;
 
-        <createTable tableName="signature">
-            <column name="id" type="BIGINT" valueComputed="nextval('signature_id_seq')" autoIncrement="true">
-                <constraints primaryKey="true" nullable="false"/>
-            </column>
-            <column name="file_id" type="BIGINT">
-                <constraints nullable="false"/>
-            </column>
-            <column name="signer" type="VARCHAR(255)">
-                <constraints nullable="true"/>
-            </column>
-            <column name="certificate_start_date" type="TIMESTAMP">
-                <constraints nullable="true"/>
-            </column>
-            <column name="certificate_end_date" type="TIMESTAMP">
-                <constraints nullable="true"/>
-            </column>
-            <column name="sign_date" type="TIMESTAMP">
-                <constraints nullable="true"/>
-            </column>
-            <column name="certificate_issued" type="VARCHAR(255)">
-                <constraints nullable="true"/>
-            </column>
-            <column name="signature_verif" type="BOOLEAN">
-                <constraints nullable="true"/>
-            </column>
-            <column name="signature_file_id" type="UUID">
-                <constraints nullable="false"/>
-            </column>
-            <column name="ext_sig_file_id" type="UUID">
-                <constraints nullable="true"/>
-            </column>
-            <column name="certificate_number" type="VARCHAR(255)">
-                <constraints nullable="true"/>
-            </column>
-        </createTable>
-        <addForeignKeyConstraint baseTableName="signature"
-          baseColumnNames="file_id"
-          referencedTableName="files"
-          referencedColumnNames="id"
-          constraintName="fk_signature_files"/>
+    @EndpointInject("mock:http:externalService")
+    private MockEndpoint mockExternalService;
 
-        <!-- Переносим данные из временных таблиц в новые -->
-        <sql>
-            INSERT INTO document_versions (id, document_id, version_id, created_at, author, version_number)
-            SELECT id, document_id, gen_random_uuid(), created_at, author,
-            ROW_NUMBER() OVER (PARTITION BY document_id ORDER BY created_at) AS version_number
-            FROM temp_document_versions;
-        </sql>
+    @BeforeEach
+    public void setUp() throws Exception {
+        // Reset mock endpoints before each test
+        mockExternalService.reset();
+    }
 
-        <sql>
-            INSERT INTO files (document_version_id, content_id, created_at, author, content_size, filename, file_extension, ext_file_id, source_system, begin_date, end_date)
-            SELECT id, content_id, created_at, author, content_size, filename, file_extension, abs_file_id, source_system, begin_date, end_date
-            FROM temp_document_versions;
-        </sql>
+    @Test
+    public void testCreatePackageRoute() throws Exception {
+        // Arrange: Mock the external HTTP endpoint
+        String mockUrl = "mock:https://{{url_createPackage_v2}}?httpClientConfigurer=trustAllHttpClientConfigurer";
+        AdviceWith.adviceWith(camelContext, "createPackageRoute", routeBuilder -> {
+            routeBuilder.weaveByToUri("https://{{url_createPackage_v2}}.*").replace().to(mockUrl);
+        });
 
-        <!-- Удаляем временные таблицы -->
-        <dropTable tableName="temp_document_versions"/>
+        // Mock response from the external service
+        String mockResponse = "{\"id\": 12345}";
+        mockExternalService.expectedMessageCount(1);
+        mockExternalService.whenAnyExchangeReceived(exchange -> {
+            exchange.getIn().setBody(mockResponse);
+        });
 
-    </changeSet>
+        // Create input DTO
+        CreatePackageRequestDto requestDto = new CreatePackageRequestDto();
+        requestDto.setType("TEST_TYPE");
+        requestDto.setData("TEST_DATA");
+        requestDto.setOrgId(1L);
+        requestDto.setAgentId(2L);
+
+        // Act: Send the request to the route
+        Exchange exchange = producerTemplate.send("direct:createPackage", ex -> {
+            ex.getIn().setHeader("Authorization", "Bearer test-token");
+            ex.getIn().setBody(requestDto);
+        });
+
+        // Assert: Verify the response
+        mockExternalService.assertIsSatisfied();
+        String responseBody = exchange.getIn().getBody(String.class);
+        assertNotNull(responseBody);
+        assertEquals("12345", exchange.getProperty("createPackageResponse", String.class));
+
+        // Verify headers and properties
+        assertEquals("Bearer test-token", exchange.getIn().getHeader("Authorization"));
+    }
+
+    @Test
+    public void testCreateApplicationRoute() throws Exception {
+        // Arrange: Mock the external HTTP endpoint
+        String mockUrl = "mock:https://{{url_createApplication_v2}}?httpClientConfigurer=trustAllHttpClientConfigurer";
+        AdviceWith.adviceWith(camelContext, "createApplicationRoute", routeBuilder -> {
+            routeBuilder.weaveByToUri("https://{{url_createApplication_v2}}.*").replace().to(mockUrl);
+        });
+
+        // Mock response from the external service
+        CreateApplicationResponse mockResponse = new CreateApplicationResponse();
+        mockResponse.setPackageId(12345L);
+        mockResponse.setDocuments("mock-documents");
+        mockExternalService.expectedMessageCount(1);
+        mockExternalService.whenAnyExchangeReceived(exchange -> {
+            exchange.getIn().setBody(mockResponse);
+        });
+
+        // Act: Send the request to the route
+        Exchange exchange = producerTemplate.send("direct:createApplication", ex -> {
+            ex.getIn().setHeader("Authorization", "Bearer test-token");
+            ex.getIn().setBody("{\"packageId\": 12345}");
+            ex.setProperty("rosrgatewayToken", "test-rosrgateway-token");
+        });
+
+        // Assert: Verify the response
+        mockExternalService.assertIsSatisfied();
+        CreateApplicationResponse response = exchange.getIn().getBody(CreateApplicationResponse.class);
+        assertNotNull(response);
+        assertEquals(12345L, response.getPackageId());
+        assertEquals("mock-documents", response.getDocuments());
+
+        // Verify properties
+        assertEquals("test-rosrgateway-token", exchange.getProperty("rosrgatewayToken"));
+    }
+
+    @Test
+    public void testGetArchiveRoute() throws Exception {
+        // Arrange: Mock the external HTTP endpoint
+        String mockUrl = "mock:https://{{url_getFiles_v2}}?httpClientConfigurer=trustAllHttpClientConfigurer";
+        AdviceWith.adviceWith(camelContext, "getArchiveRoute", routeBuilder -> {
+            routeBuilder.weaveByToUri("https://{{url_getFiles_v2}}.*").replace().to(mockUrl);
+        });
+
+        // Mock response from the external service
+        String mockResponse = "[{\"name\": \"file1.pdf\", \"location\": \"https://docstore/file1.pdf\", \"consumerId\": \"1\"}]";
+        mockExternalService.expectedMessageCount(1);
+        mockExternalService.whenAnyExchangeReceived(exchange -> {
+            exchange.getIn().setBody(mockResponse);
+        });
+
+        // Act: Send the request to the route
+        Exchange exchange = producerTemplate.send("direct:getArchive", ex -> {
+            ex.getIn().setHeader("Authorization", "Bearer test-token");
+            ex.getIn().setBody("{\"packageId\": 12345, \"responseId\": 67890}");
+            ex.setProperty("rosrgatewayToken", "test-rosrgateway-token");
+        });
+
+        // Assert: Verify the response
+        mockExternalService.assertIsSatisfied();
+        ru.seventech.esb.technoprom.api.GetArchiveResponse response = exchange.getIn().getBody(ru.seventech.esb.technoprom.api.GetArchiveResponse.class);
+        assertNotNull(response);
+        assertEquals(12345L, response.getPackageId());
+        assertEquals(1, response.getDocuments().size());
+        assertEquals("file1.pdf", response.getDocuments().get(0).getName());
+
+        // Verify loop index increment
+        assertEquals(1, exchange.getProperty("loopIndex_getArchive", Integer.class).intValue());
+    }
+}
