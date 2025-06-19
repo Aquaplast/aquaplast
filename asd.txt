@@ -1,1 +1,1 @@
-java.lang.IllegalStateException: Unable to find a @SpringBootConfiguration, you need to use @ContextConfiguration or @SpringBootTest(classes=...) with your test
+java.lang.IllegalArgumentException: Cannot advice route as route with id: getArchiveRoute does not exists
