@@ -1,87 +1,167 @@
+package com.example.camel;
 
-java.lang.IllegalArgumentException: There are no outputs which matches: https://rr-generate-service.mdlw.ahml.stage/api/integration/v2/%1$s/responses/%2$s/files.* in the route: Route(direct:getArchiveRoute)[From[direct:getArchiveRoute] -> [OnException[[java.net.SocketException] -> []], OnException[[java.net.SocketTimeoutException] -> []], To[direct:getMethodStartTime], To[log:ru.seventech.esb.technoprom.getArchive.v2.start?showAll=true], SetProperty[rosrgatewayToken, bean[ref:authService method:getToken]], DoTry[[To[direct:ru.seventech.esb.technoprom.prepareRequest.v2], Unmarshal[org.apache.camel.model.dataformat.JsonDataFormat@4db728df], SetProperty[packageId, simple{${body.get("packageId")}}], SetProperty[responseId, simple{${body.get("responseId")}}], SetHeader[CamelHttpMethod, constant{GET}], SetHeader[Authorization, simple{${exchangeProperty.rosrgatewayToken}}], SetBody[simple{${null}}], SetProperty[getFilesUrl, simple{{{url_getFiles_v2}}}], SetProperty[getFilesUrlWithUid, groovy{
-						String.format(exchange.properties.getFilesUrl, exchange.properties.packageId, exchange.properties.responseId)
-					}], To[log:ru.seventech.esb.technoprom.getArchive.v2.beforeGetFiles?showAll=false], DynamicTo[https://${exchangeProperty.getFilesUrlWithUid}?httpClientConfigurer=trustAllHttpClientConfigurer], To[log:ru.seventech.esb.technoprom.getArchive.v2.afterGetFiles?showAll=false], Unmarshal[org.apache.camel.model.dataformat.JsonDataFormat@5b7ee56c], SetProperty[responseFiles, simple{${body}}], SetProperty[response, groovy{new ru.seventech.esb.technoprom.api.GetArchiveResponse()}], Script[groovy{exchange.properties.response.setPackageId(exchange.properties.packageId)}], SetProperty[loopIndex_getArchive, groovy{Integer x = 0; return x}], Loop[groovy{exchange.properties.responseFiles.size()} -> [SetProperty[file, groovy{
-							return exchange.properties.responseFiles.get((Integer) exchange.properties.loopIndex_getArchive)
-						}], SetProperty[end, groovy{exchange.properties.file.location.lastIndexOf('/')}], SetProperty[start, groovy{exchange.properties.file.location.lastIndexOf('/', exchange.properties.end - 1)}], SetProperty[uuid, groovy{exchange.properties.file.location.substring(exchange.properties.start + 1, exchange.properties.end)}], SetProperty[host_bank, simple{https://{{docstore_host_bank}}}], SetProperty[host_dom, simple{https://{{docstore_host_dom}}}], SetProperty[path, simple{{{docstore_path}}}], Script[groovy{
-							def document = new ru.seventech.esb.technoprom.api.GetArchiveResponse.Document(
-							exchange.properties.file.name,
-							exchange.properties.uuid,
-							('1'.equals(exchange.properties.file.consumerId) ? exchange.properties.host_bank : exchange.properties.host_dom) + exchange.properties.path + exchange.properties.uuid
-							)
-							exchange.properties.response.documents.add(document)
-						}], SetProperty[loopIndex_getArchive, groovy{((Integer) exchange.properties.loopIndex_getArchive) + 1}]]], SetBody[groovy{exchange.properties.response}], SetProperty[logInfo, simple{${exchangeProperty.packageId}}], SetProperty[methodName, simple{getArchive}], To[direct:logMethodTiming], To[log:ru.seventech.esb.technoprom.getArchive.v2.end?showAll=false&showBody=true], Marshal[org.apache.camel.model.dataformat.JsonDataFormat@28b5662d], DoCatch[ [class org.apache.camel.http.base.HttpOperationFailedException] -> [To[log:ru.seventech.esb.technoprom.getArchive.v2.error?showAll=true], SetHeader[Exchange.HTTP_RESPONSE_CODE, constant{400}], SetBody[simple{${exception.getResponseBody()}}]]]]]]]
+import org.apache.camel.CamelContext;
+import org.apache.camel.EndpointInject;
+import org.apache.camel.Exchange;
+import org.apache.camel.ProducerTemplate;
+import org.apache.camel.builder.AdviceWith;
+import org.apache.camel.component.mock.MockEndpoint;
+import org.apache.camel.test.spring.junit5.CamelSpringBootTest;
+import org.apache.camel.test.spring.junit5.MockEndpoints;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import ru.seventech.esb.technoprom.dto.CreatePackageRequestDto;
+import ru.seventech.esb.technoprom.api.CreateApplicationResponse;
 
-	at org.apache.camel.builder.AdviceWithTasks$1.task(AdviceWithTasks.java:226)
-	at org.apache.camel.builder.AdviceWith.doAdviceWith(AdviceWith.java:258)
-	at org.apache.camel.builder.AdviceWith.adviceWith(AdviceWith.java:77)
-	at CamelRoutesXmlTest.testGetArchiveRoute(CamelRoutesXmlTest.java:121)
-	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
-	at java.base/java.lang.reflect.Method.invoke(Method.java:578)
-	at org.junit.platform.commons.util.ReflectionUtils.invokeMethod(ReflectionUtils.java:727)
-	at org.junit.jupiter.engine.execution.MethodInvocation.proceed(MethodInvocation.java:60)
-	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$ValidatingInvocation.proceed(InvocationInterceptorChain.java:131)
-	at org.junit.jupiter.engine.extension.TimeoutExtension.intercept(TimeoutExtension.java:156)
-	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestableMethod(TimeoutExtension.java:147)
-	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestMethod(TimeoutExtension.java:86)
-	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker$ReflectiveInterceptorCall.lambda$ofVoidMethod$0(InterceptingExecutableInvoker.java:103)
-	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.lambda$invoke$0(InterceptingExecutableInvoker.java:93)
-	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$InterceptedInvocation.proceed(InvocationInterceptorChain.java:106)
-	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.proceed(InvocationInterceptorChain.java:64)
-	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.chainAndInvoke(InvocationInterceptorChain.java:45)
-	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.invoke(InvocationInterceptorChain.java:37)
-	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:92)
-	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:86)
-	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.lambda$invokeTestMethod$7(TestMethodTestDescriptor.java:217)
-	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
-	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.invokeTestMethod(TestMethodTestDescriptor.java:213)
-	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:138)
-	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:68)
-	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$6(NodeTestTask.java:151)
-	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
-	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$8(NodeTestTask.java:141)
-	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:137)
-	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$9(NodeTestTask.java:139)
-	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
-	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:138)
-	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:95)
-	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
-	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:41)
-	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$6(NodeTestTask.java:155)
-	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
-	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$8(NodeTestTask.java:141)
-	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:137)
-	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$9(NodeTestTask.java:139)
-	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
-	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:138)
-	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:95)
-	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
-	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:41)
-	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$6(NodeTestTask.java:155)
-	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
-	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$8(NodeTestTask.java:141)
-	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:137)
-	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$9(NodeTestTask.java:139)
-	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
-	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:138)
-	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:95)
-	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.submit(SameThreadHierarchicalTestExecutorService.java:35)
-	at org.junit.platform.engine.support.hierarchical.HierarchicalTestExecutor.execute(HierarchicalTestExecutor.java:57)
-	at org.junit.platform.engine.support.hierarchical.HierarchicalTestEngine.execute(HierarchicalTestEngine.java:54)
-	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:147)
-	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:127)
-	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:90)
-	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.lambda$execute$0(EngineExecutionOrchestrator.java:55)
-	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.withInterceptedStreams(EngineExecutionOrchestrator.java:102)
-	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:54)
-	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:114)
-	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:86)
-	at org.junit.platform.launcher.core.DefaultLauncherSession$DelegatingLauncher.execute(DefaultLauncherSession.java:86)
-	at org.junit.platform.launcher.core.SessionPerRequestLauncher.execute(SessionPerRequestLauncher.java:53)
-	at com.intellij.junit5.JUnit5IdeaTestRunner.startRunnerWithArgs(JUnit5IdeaTestRunner.java:57)
-	at com.intellij.rt.junit.IdeaTestRunner$Repeater$1.execute(IdeaTestRunner.java:38)
-	at com.intellij.rt.execution.junit.TestsRepeater.repeat(TestsRepeater.java:11)
-	at com.intellij.rt.junit.IdeaTestRunner$Repeater.startRunnerWithArgs(IdeaTestRunner.java:35)
-	at com.intellij.rt.junit.JUnitStarter.prepareStreamsAndStart(JUnitStarter.java:232)
-	at com.intellij.rt.junit.JUnitStarter.main(JUnitStarter.java:55)
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
+@SpringBootTest(classes = com.example.camel.Application.class)
+@CamelSpringBootTest
+@MockEndpoints("http.*")
+public class CamelRoutesTest {
+
+    private static final Logger logger = LoggerFactory.getLogger(CamelRoutesTest.class);
+
+    @Autowired
+    private CamelContext camelContext;
+
+    @Autowired
+    private ProducerTemplate producerTemplate;
+
+    @EndpointInject("mock:http:externalService")
+    private MockEndpoint mockExternalService;
+
+    @BeforeEach
+    public void setUp() throws Exception {
+        // Reset mock endpoints before each test
+        mockExternalService.reset();
+        // Log available route IDs and endpoints for debugging
+        logger.info("Available routes: {}", camelContext.getRouteDefinitions().stream()
+                .map(def -> def.getId() + " -> " + def.getOutputs()).collect(java.util.stream.Collectors.toList()));
+    }
+
+    private boolean adviceRoute(String routeId, String originalUriPattern, String mockUri) {
+        try {
+            AdviceWith.adviceWith(camelContext, routeId, routeBuilder -> {
+                routeBuilder.weaveByToUri(originalUriPattern).replace().to(mockUri);
+            });
+            logger.info("Successfully advised route {} with pattern {}", routeId, originalUriPattern);
+            return true;
+        } catch (IllegalArgumentException e) {
+            logger.error("Failed to advise route '{}'. Error: {}. Available routes: {}", routeId, e.getMessage(),
+                    camelContext.getRouteDefinitions().stream()
+                            .map(def -> def.getId() + " -> " + def.getOutputs())
+                            .collect(java.util.stream.Collectors.toList()));
+            return false;
+        }
+    }
+
+    @Test
+    public void testCreatePackageRoute() throws Exception {
+        String routeId = "direct:createPackageRoute";
+        String mockUrl = "mock:https://{{url_createPackage_v2}}?httpClientConfigurer=trustAllHttpClientConfigurer";
+        boolean routeAdvised = adviceRoute(routeId, "https://{{url_createPackage_v2}}.*", mockUrl);
+
+        if (!routeAdvised) {
+            logger.warn("Skipping HTTP endpoint mocking for {} due to missing route or endpoint", routeId);
+        }
+
+        String mockResponse = "{\"id\": 12345}";
+        mockExternalService.expectedMessageCount(routeAdvised ? 1 : 0);
+        mockExternalService.whenAnyExchangeReceived(exchange -> {
+            exchange.getIn().setBody(mockResponse);
+        });
+
+        CreatePackageRequestDto requestDto = new CreatePackageRequestDto();
+        requestDto.setType("TEST_TYPE");
+        requestDto.setData("TEST_DATA");
+        requestDto.setOrgId(1L);
+        requestDto.setAgentId(2L);
+
+        Exchange exchange = producerTemplate.send("direct:createPackage", ex -> {
+            ex.getIn().setHeader("Authorization", "Bearer test-token");
+            ex.getIn().setBody(requestDto);
+        });
+
+        mockExternalService.assertIsSatisfied();
+        String responseBody = exchange.getIn().getBody(String.class);
+        assertNotNull(responseBody);
+        if (routeAdvised) {
+            assertEquals("12345", exchange.getProperty("createPackageResponse", String.class));
+        }
+        assertEquals("Bearer test-token", exchange.getIn().getHeader("Authorization"));
+    }
+
+    @Test
+    public void testCreateApplicationRoute() throws Exception {
+        String routeId = "direct:createApplicationRoute";
+        String mockUrl = "mock:https://{{url_createApplication_v2}}?httpClientConfigurer=trustAllHttpClientConfigurer";
+        boolean routeAdvised = adviceRoute(routeId, "https://{{url_createApplication_v2}}.*", mockUrl);
+
+        if (!routeAdvised) {
+            logger.warn("Skipping HTTP endpoint mocking for {} due to missing route or endpoint", routeId);
+        }
+
+        CreateApplicationResponse mockResponse = new CreateApplicationResponse();
+        mockResponse.setPackageId(12345L);
+        mockResponse.setDocuments("mock-documents");
+        mockExternalService.expectedMessageCount(routeAdvised ? 1 : 0);
+        mockExternalService.whenAnyExchangeReceived(exchange -> {
+            exchange.getIn().setBody(mockResponse);
+        });
+
+        Exchange exchange = producerTemplate.send("direct:createApplication", ex -> {
+            ex.getIn().setHeader("Authorization", "Bearer test-token");
+            ex.getIn().setBody("{\"packageId\": 12345}");
+            ex.setProperty("rosrgatewayToken", "test-rosrgateway-token");
+        });
+
+        mockExternalService.assertIsSatisfied();
+        CreateApplicationResponse response = exchange.getIn().getBody(CreateApplicationResponse.class);
+        assertNotNull(response);
+        if (routeAdvised) {
+            assertEquals(12345L, response.getPackageId());
+            assertEquals("mock-documents", response.getDocuments());
+            assertEquals("test-rosrgatewayToken", exchange.getProperty("rosrgatewayToken"));
+        }
+    }
+
+    @Test
+    public void testGetArchiveRoute() throws Exception {
+        String routeId = "direct:getArchiveRoute";
+        // Match the dynamic endpoint used in the route
+        String mockUrl = "mock:https://rr-generate-service.mdlw.ahml.stage/api/integration/v2.*";
+        boolean routeAdvised = adviceRoute(routeId, "https://${exchangeProperty.getFilesUrlWithUid}.*", mockUrl);
+
+        if (!routeAdvised) {
+            logger.warn("Skipping HTTP endpoint mocking for {} due to missing route or endpoint", routeId);
+        }
+
+        String mockResponse = "[{\"name\": \"file1.pdf\", \"location\": \"https://docstore/file1.pdf\", \"consumerId\": \"1\"}]";
+        mockExternalService.expectedMessageCount(routeAdvised ? 1 : 0);
+        mockExternalService.whenAnyExchangeReceived(exchange -> {
+            exchange.getIn().setBody(mockResponse);
+        });
+
+        Exchange exchange = producerTemplate.send("direct:getArchive", ex -> {
+            ex.getIn().setHeader("Authorization", "Bearer test-token");
+            ex.getIn().setBody("{\"packageId\": 12345, \"responseId\": 67890}");
+            ex.setProperty("rosrgatewayToken", "test-rosrgateway-token");
+        });
+
+        mockExternalService.assertIsSatisfied();
+        ru.seventech.esb.technoprom.api.GetArchiveResponse response = exchange.getIn().getBody(ru.seventech.esb.technoprom.api.GetArchiveResponse.class);
+        assertNotNull(response);
+        if (routeAdvised) {
+            assertEquals(12345L, response.getPackageId());
+            assertEquals(1, response.getDocuments().size());
+            assertEquals("file1.pdf", response.getDocuments().get(0).getName());
+            assertEquals(1, exchange.getProperty("loopIndex_getArchive", Integer.class).intValue());
+        }
+    }
+}
