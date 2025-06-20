@@ -1,86 +1,11 @@
-import org.apache.camel.CamelContext;
-import org.apache.camel.ProducerTemplate;
-import org.apache.camel.model.ModelCamelContext;
-import org.apache.camel.test.junit5.CamelTestSupport;
-import org.apache.camel.builder.AdviceWithRouteBuilder;
-import org.apache.camel.builder.xml.XPathBuilder;
-import org.apache.camel.component.mock.MockEndpoint;
-import org.apache.camel.main.xml.XmlRoutesBuilderLoader;
-import org.apache.camel.spi.RoutesBuilderLoader;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
-import java.util.HashMap;
-import java.util.Map;
-
-public class CreatePackageRouteTest extends CamelTestSupport {
-
-    @Override
-    protected boolean isUseAdviceWith() {
-        return true; // Включает поддержку AdviceWith
-    }
-
-    @Override
-    protected CamelContext createCamelContext() throws Exception {
-        CamelContext context = super.createCamelContext();
-
-        // Включаем XML loader
-        context.getRegistry().bind("xml-loader", new XmlRoutesBuilderLoader());
-        context.getCamelContextExtension().getRoutesLoader().setRoutesBuilderLoader("xml-loader");
-
-        // Загружаем XML-маршрут из resources
-        context.addRouteDefinitions(
-            context.loadRoutesDefinition(
-                getClass().getClassLoader().getResourceAsStream("camel-routes.xml")
-            ).getRoutes()
-        );
-
-        return context;
-    }
-
-    @BeforeEach
-    void prepareRoute() throws Exception {
-        // Подменяем внешний HTTP вызов (url_createPackage_v2)
-        context.getRouteDefinition("direct:ru.seventech.esb.technoprom.createPackage.v2")
-            .adviceWith((ModelCamelContext) context, new AdviceWithRouteBuilder() {
-                @Override
-                public void configure() {
-                    // toD (url_createPackage_v2)
-                    weaveByToUri("https://{{url_createPackage_v2}}*")
-                        .replace()
-                        .to("mock:createPackage");
-
-                    // Подменяем prepareRequest тоже
-                    weaveByToUri("direct:ru.seventech.esb.technoprom.prepareRequest.v2")
-                        .replace()
-                        .to("mock:prepareRequest");
-                }
-            });
-
-        context.start();
-    }
-
-    @Test
-    public void testCreatePackageRoute() throws Exception {
-        MockEndpoint createPackage = getMockEndpoint("mock:createPackage");
-        createPackage.expectedMessageCount(1);
-
-        // Данные как будто от клиента
-        String inputJson = """
-            {
-              "packageType": "TYPE1",
-              "packageData": {
-                "declarants": [],
-                "documents": [],
-                "transfer": {}
-              },
-              "orgId": "ORG1",
-              "agentId": "AGENT1"
-            }
-            """;
-
-        template.sendBodyAndHeader("direct:ru.seventech.esb.technoprom.createPackage.v2", inputJson, "Authorization", "Bearer abc");
-
-        assertMockEndpointsSatisfied();
-    }
-}
+<dependency>
+  <groupId>org.apache.camel</groupId>
+  <artifactId>camel-test-junit5</artifactId>
+  <version>4.4.0</version>
+  <scope>test</scope>
+</dependency>
+<dependency>
+  <groupId>org.apache.camel</groupId>
+  <artifactId>camel-xml-io</artifactId>
+  <version>4.4.0</version>
+</dependency>
