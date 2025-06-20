@@ -1,72 +1,40 @@
-import org.apache.camel.CamelContext;
 import org.apache.camel.ProducerTemplate;
-import org.apache.camel.RoutesBuilder;
-import org.apache.camel.builder.AdviceWithRouteBuilder;
-import org.apache.camel.impl.DefaultCamelContext;
-import org.apache.camel.model.ModelCamelContext;
-import org.apache.camel.model.RoutesDefinition;
-import org.apache.camel.test.junit5.CamelTestSupport;
 import org.apache.camel.component.mock.MockEndpoint;
-import org.junit.jupiter.api.BeforeEach;
+import org.apache.camel.test.spring.junit5.CamelSpringBootTest;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
 
-import java.io.InputStream;
+@CamelSpringBootTest
+@SpringBootTest
+public class CreatePackageRouteSpringTest {
 
-public class CreatePackageRouteFromXmlTest extends CamelTestSupport {
+    @Autowired
+    private ProducerTemplate template;
 
-    @Override
-    protected boolean isUseAdviceWith() {
-        return true;
-    }
-
-    @Override
-    protected CamelContext createCamelContext() throws Exception {
-        CamelContext context = new DefaultCamelContext();
-
-        // Загружаем XML-файл из ресурсов
-        InputStream xml = getClass().getClassLoader().getResourceAsStream("camel-routes.xml");
-        RoutesDefinition routes = context.loadRoutesDefinition(xml);
-        context.addRouteDefinitions(routes.getRoutes());
-
-        return context;
-    }
-
-    @BeforeEach
-    void mockExternalCalls() throws Exception {
-        context.getRouteDefinition("direct:ru.seventech.esb.technoprom.createPackage.v2")
-            .adviceWith((ModelCamelContext) context, new AdviceWithRouteBuilder() {
-                @Override
-                public void configure() throws Exception {
-                    // мокать внешние вызовы
-                    weaveByToUri("direct:ru.seventech.esb.technoprom.prepareRequest.v2")
-                        .replace()
-                        .to("mock:prepareRequest");
-
-                    weaveByToUri("https://{{url_createPackage_v2}}*")
-                        .replace()
-                        .to("mock:createPackage");
-                }
-            });
-
-        context.start();
-    }
+    @Autowired
+    private org.apache.camel.CamelContext context;
 
     @Test
-    public void testCreatePackageFromXml() throws Exception {
-        getMockEndpoint("mock:prepareRequest").expectedMessageCount(1);
-        getMockEndpoint("mock:createPackage").expectedMessageCount(1);
+    public void testCreatePackage() throws Exception {
+        MockEndpoint prepareRequest = context.getEndpoint("mock:direct:ru.seventech.esb.technoprom.prepareRequest.v2", MockEndpoint.class);
+        MockEndpoint createPackage = context.getEndpoint("mock:https://{{url_createPackage_v2}}?httpClientConfigurer=trustAllHttpClientConfigurer", MockEndpoint.class);
 
-        String request = """
+        prepareRequest.expectedMessageCount(1);
+        createPackage.expectedMessageCount(1);
+
+        String body = """
             {
-              "packageType": "TEST",
+              "packageType": "SOME_TYPE",
               "packageData": {},
-              "orgId": "ORG1",
-              "agentId": "AG1"
+              "orgId": "ORG",
+              "agentId": "AG"
             }
-            """;
+        """;
 
-        template.sendBodyAndHeader("direct:ru.seventech.esb.technoprom.createPackage.v2", request, "Authorization", "Bearer token");
+        template.sendBodyAndHeader("direct:ru.seventech.esb.technoprom.createPackage.v2", body, "Authorization", "Bearer test");
 
-        assertMockEndpointsSatisfied();
+        prepareRequest.assertIsSatisfied();
+        createPackage.assertIsSatisfied();
     }
 }
