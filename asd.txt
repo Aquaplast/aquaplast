@@ -1,1 +1,46 @@
-boolean routeAdvised = adviceRoute(routeId, "https://.*", "mock:httpExternal");
+import org.apache.camel.builder.AdviceWithRouteBuilder;
+import org.apache.camel.model.ModelCamelContext;
+import org.apache.camel.test.junit5.CamelTestSupport;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+public class CreatePackageRouteTest extends CamelTestSupport {
+
+    @Override
+    protected String isMockEndpointsAndSkip() {
+        // Мокаем внешние HTTP вызовы
+        return "https://.*";
+    }
+
+    @Override
+    protected RouteBuilder createRouteBuilder() throws Exception {
+        return new CreatePackageRoute(); // твой RouteBuilder
+    }
+
+    @BeforeEach
+    public void setUpRoute() throws Exception {
+        context.getRouteDefinition("direct:ru.seventech.esb.technoprom.createPackage.v2")
+            .adviceWith(context, new AdviceWithRouteBuilder() {
+                @Override
+                public void configure() {
+                    weaveByToUri("https://{{url_createPackage_v2}}*").replace().to("mock:createPackage");
+                    weaveByToUri("direct:ru.seventech.esb.technoprom.prepareRequest.v2").replace().to("mock:prepareRequest");
+                }
+            });
+        context.start();
+    }
+
+    @Test
+    public void testCreatePackageRoute() {
+        getMockEndpoint("mock:createPackage").expectedMessageCount(1);
+        getMockEndpoint("mock:prepareRequest").expectedMessageCount(1);
+
+        template.sendBodyAndHeader(
+            "direct:ru.seventech.esb.technoprom.createPackage.v2",
+            "{\"packageType\": \"test\", \"packageData\": {}}",
+            "Authorization", "Bearer token"
+        );
+
+        assertMockEndpointsSatisfied();
+    }
+}
