@@ -1,1 +1,39 @@
-mockGetDocument.returnReplyBody(exchange -> "document-content");
+@Test
+public void testGetDocumentRoute_Success() throws Exception {
+    // Arrange
+    AdviceWith.adviceWith(producerTemplate.getCamelContext(), "direct:getDocumentRoute", 
+        advice -> advice.weaveByToUri("https:*").replace().to("mock:https:external-service/getDocument"));
+
+    MockEndpoint mockGetDocument = producerTemplate.getCamelContext().getEndpoint(
+        "mock:https:external-service/getDocument", MockEndpoint.class);
+    
+    // Настройка ожидаемых заголовков
+    mockGetDocument.expectedHeaderReceived("Authorization", "mocked-token");
+    mockGetDocument.expectedHeaderReceived("CamelHttpMethod", "GET");
+    
+    // Универсальная обработка ответа
+    mockGetDocument.whenAnyExchangeReceived(exchange -> {
+        // Эмуляция бинарного контента (PDF, изображение и т.д.)
+        byte[] mockContent = "Mocked PDF content".getBytes();
+        
+        exchange.getMessage().setBody(mockContent);
+        exchange.getMessage().setHeader(Exchange.CONTENT_TYPE, "application/pdf");
+        exchange.getMessage().setHeader(Exchange.CONTENT_LENGTH, mockContent.length);
+        exchange.getMessage().setHeader(Exchange.FILE_NAME, "document.pdf");
+    });
+
+    // Act
+    Object response = producerTemplate.requestBodyAndHeaders(
+        "direct:getDocumentRoute",
+        null,
+        Map.of(
+            "packageId", "123",
+            "documentId", "456"
+        )
+    );
+
+    // Assert
+    mockGetDocument.assertIsSatisfied();
+    assertInstanceOf(byte[].class, response);
+    assertEquals("Mocked PDF content", new String((byte[]) response));
+}
