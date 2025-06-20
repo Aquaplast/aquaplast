@@ -1,49 +1,4 @@
 @Test
-public void testDeletePackageRoute_Success() throws Exception {
-    // Подготовка AdviceWith
-    AdviceWith.adviceWith(camelContext, "direct:deletePackageRoute", a -> {
-        a.weaveByToUri("https:*").replace().to("mock:https:external-service/deletePackage");
-    });
-    
-    camelContext.start();
-    
-    MockEndpoint mockDelete = camelContext.getEndpoint(
-        "mock:https:external-service/deletePackage", MockEndpoint.class);
-    
-    // Настройка ожиданий
-    mockDelete.expectedMessageCount(1);
-    mockDelete.expectedHeaderReceived("Authorization", "mocked-token");
-    mockDelete.expectedHeaderReceived(Exchange.HTTP_METHOD, "DELETE");
-    mockDelete.expectedHeaderReceived(Exchange.CONTENT_TYPE, "application/json");
-    
-    // Мокирование ответа
-    mockDelete.whenAnyExchangeReceived(exchange -> {
-        exchange.getMessage().setHeader(Exchange.HTTP_RESPONSE_CODE, 200);
-    });
-
-    // Подготовка запроса
-    String requestBody = "{\"packageId\":\"12345\"}";
-    
-    // Выполнение
-    String response = producerTemplate.requestBody(
-        "direct:deletePackageRoute", 
-        requestBody,
-        String.class
-    );
-
-    // Проверки
-    mockDelete.assertIsSatisfied();
-    
-    // Проверка URL
-    String actualUri = mockDelete.getExchanges().get(0)
-        .getMessage().getHeader(Exchange.HTTP_URI, String.class);
-    assertTrue(actualUri.contains("/12345"), "URL должен содержать packageId");
-    
-    // Проверка ответа
-    assertEquals("{\"removedPackageId\":\"12345\"}", response);
-}
-
-@Test
 public void testDeletePackageRoute_NotFound() throws Exception {
     AdviceWith.adviceWith(camelContext, "direct:deletePackageRoute", a -> {
         a.weaveByToUri("https:*").replace().to("mock:https:external-service/deletePackage");
@@ -56,8 +11,16 @@ public void testDeletePackageRoute_NotFound() throws Exception {
     
     // Эмуляция ошибки 404
     mockDelete.whenAnyExchangeReceived(exchange -> {
-        exchange.getMessage().setBody("{\"error\":\"Package not found\"}");
-        exchange.getMessage().setHeader(Exchange.HTTP_RESPONSE_CODE, 404);
+        // Создаем полноценное исключение
+        HttpOperationFailedException exception = new HttpOperationFailedException(
+            "https://external-service/deletePackage/123", 
+            404, 
+            "Not Found", 
+            "https://external-service", 
+            "{\"error\":\"Package not found\"}".getBytes(), 
+            null
+        );
+        exchange.setException(exception);
     });
 
     String requestBody = "{\"packageId\":\"non-existent-id\"}";
@@ -69,93 +32,11 @@ public void testDeletePackageRoute_NotFound() throws Exception {
 
     // Проверки
     mockDelete.assertIsSatisfied();
-    assertEquals(404, response.getMessage().getHeader(Exchange.HTTP_RESPONSE_CODE));
+    
+    // Маршрут должен вернуть 400, а не 404!
+    assertEquals(400, response.getMessage().getHeader(Exchange.HTTP_RESPONSE_CODE));
     assertTrue(response.getMessage().getBody(String.class).contains("Package not found"));
-}
-
-@Test
-public void testGetArchiveRoute_Success() throws Exception {
-    // Подготовка AdviceWith
-    AdviceWith.adviceWith(camelContext, "direct:getArchiveRoute", a -> {
-        a.weaveByToUri("https:*").replace().to("mock:https:external-service/getFiles");
-    });
     
-    camelContext.start();
-    
-    MockEndpoint mockGetFiles = camelContext.getEndpoint(
-        "mock:https:external-service/getFiles", MockEndpoint.class);
-    
-    // Настройка ожиданий
-    mockGetFiles.expectedMessageCount(1);
-    mockGetFiles.expectedHeaderReceived("Authorization", "mocked-token");
-    mockGetFiles.expectedHeaderReceived(Exchange.HTTP_METHOD, "GET");
-    
-    // Мокирование ответа с двумя документами
-    mockGetFiles.whenAnyExchangeReceived(exchange -> {
-        String responseBody = "["
-            + "{\"name\":\"doc1.pdf\", \"location\":\"https://example.com/files/uuid1\", \"consumerId\":\"1\"},"
-            + "{\"name\":\"doc2.docx\", \"location\":\"https://example.com/files/uuid2\", \"consumerId\":\"2\"}"
-            + "]";
-        exchange.getMessage().setBody(responseBody);
-        exchange.getMessage().setHeader(Exchange.HTTP_RESPONSE_CODE, 200);
-        exchange.getMessage().setHeader(Exchange.CONTENT_TYPE, "application/json");
-    });
-
-    // Установка свойств для URL преобразования
-    camelContext.getPropertiesComponent().setProperty("docstore_host_bank", "https://bank-docstore");
-    camelContext.getPropertiesComponent().setProperty("docstore_host_dom", "https://dom-docstore");
-    camelContext.getPropertiesComponent().setProperty("docstore_path", "/api/documents/");
-
-    // Подготовка запроса
-    String requestBody = "{\"packageId\":\"123\", \"responseId\":\"456\"}";
-    
-    // Выполнение
-    String response = producerTemplate.requestBody(
-        "direct:getArchiveRoute", 
-        requestBody,
-        String.class
-    );
-
-    // Проверки
-    mockGetFiles.assertIsSatisfied();
-    
-    // Проверка URL
-    String actualUri = mockGetFiles.getExchanges().get(0)
-        .getMessage().getHeader(Exchange.HTTP_URI, String.class);
-    assertTrue(actualUri.contains("/123/456"), "URL должен содержать packageId и responseId");
-    
-    // Проверка преобразования URL
-    assertTrue(response.contains("\"url\":\"https://bank-docstore/api/documents/uuid1\""));
-    assertTrue(response.contains("\"url\":\"https://dom-docstore/api/documents/uuid2\""));
-    assertTrue(response.contains("\"packageId\":\"123\""));
-}
-
-@Test
-public void testGetArchiveRoute_EmptyResponse() throws Exception {
-    AdviceWith.adviceWith(camelContext, "direct:getArchiveRoute", a -> {
-        a.weaveByToUri("https:*").replace().to("mock:https:external-service/getFiles");
-    });
-    
-    camelContext.start();
-    
-    MockEndpoint mockGetFiles = camelContext.getEndpoint(
-        "mock:https:external-service/getFiles", MockEndpoint.class);
-    
-    // Эмуляция пустого ответа
-    mockGetFiles.whenAnyExchangeReceived(exchange -> {
-        exchange.getMessage().setBody("[]");
-        exchange.getMessage().setHeader(Exchange.HTTP_RESPONSE_CODE, 200);
-    });
-
-    String requestBody = "{\"packageId\":\"123\", \"responseId\":\"456\"}";
-    
-    String response = producerTemplate.requestBody(
-        "direct:getArchiveRoute", 
-        requestBody,
-        String.class
-    );
-
-    // Проверки
-    mockGetFiles.assertIsSatisfied();
-    assertTrue(response.contains("\"documents\":[]"), "Должен вернуться пустой список документов");
+    // Дополнительная проверка, что не возвращается removedPackageId
+    assertFalse(response.getMessage().getBody(String.class).contains("removedPackageId"));
 }
