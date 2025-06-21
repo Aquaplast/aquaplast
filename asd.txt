@@ -1,42 +1,51 @@
 @Test
-public void testDeletePackageRoute_NotFound() throws Exception {
-    AdviceWith.adviceWith(camelContext, "direct:deletePackageRoute", a -> {
-        a.weaveByToUri("https:*").replace().to("mock:https:external-service/deletePackage");
+public void testOnlineObjectsRoute_SuccessWithParameters() throws Exception {
+    // Подготовка AdviceWith
+    AdviceWith.adviceWith(camelContext, "direct:onlineObjectsRoute", a -> {
+        a.weaveByToUri("https:*").replace().to("mock:https:external-service/objects");
     });
     
     camelContext.start();
     
-    MockEndpoint mockDelete = camelContext.getEndpoint(
-        "mock:https:external-service/deletePackage", MockEndpoint.class);
+    MockEndpoint mockObjects = camelContext.getEndpoint(
+        "mock:https:external-service/objects", MockEndpoint.class);
     
-    // Эмуляция ошибки 404
-    mockDelete.whenAnyExchangeReceived(exchange -> {
-        // Создаем полноценное исключение
-        HttpOperationFailedException exception = new HttpOperationFailedException(
-            "https://external-service/deletePackage/123", 
-            404, 
-            "Not Found", 
-            "https://external-service", 
-            "{\"error\":\"Package not found\"}".getBytes(), 
-            null
-        );
-        exchange.setException(exception);
+    // Настройка ожиданий
+    mockObjects.expectedMessageCount(1);
+    mockObjects.expectedHeaderReceived("Authorization", "mocked-token");
+    mockObjects.expectedHeaderReceived(Exchange.HTTP_METHOD, "GET");
+    
+    // Мокирование успешного ответа
+    String expectedResponse = "[{\"id\":1,\"name\":\"Object 1\"}, {\"id\":2,\"name\":\"Object 2\"}]";
+    mockObjects.whenAnyExchangeReceived(exchange -> {
+        exchange.getMessage().setBody(expectedResponse);
+        exchange.getMessage().setHeader(Exchange.HTTP_RESPONSE_CODE, 200);
     });
 
-    String requestBody = "{\"packageId\":\"non-existent-id\"}";
+    // Параметры запроса
+    Map<String, Object> headers = new HashMap<>();
+    headers.put("region", "Moscow");
+    headers.put("street", "Tverskaya");
+    headers.put("house", "1");
+    headers.put("cacheUse", "true");
     
-    Exchange response = producerTemplate.request(
-        "direct:deletePackageRoute", 
-        exchange -> exchange.getIn().setBody(requestBody)
+    // Выполнение запроса
+    Object response = producerTemplate.requestBodyAndHeaders(
+        "direct:onlineObjectsRoute", 
+        null, // GET запрос без тела
+        headers
     );
 
     // Проверки
-    mockDelete.assertIsSatisfied();
+    mockObjects.assertIsSatisfied();
     
-    // Маршрут должен вернуть 400, а не 404!
-    assertEquals(400, response.getMessage().getHeader(Exchange.HTTP_RESPONSE_CODE));
-    assertTrue(response.getMessage().getBody(String.class).contains("Package not found"));
+    // Проверка URL: должен содержать ожидаемые параметры
+    String actualUri = mockObjects.getExchanges().get(0).getMessage().getHeader(Exchange.HTTP_URI, String.class);
+    assertTrue(actualUri.contains("region=Moscow"));
+    assertTrue(actualUri.contains("street=Tverskaya"));
+    assertTrue(actualUri.contains("house=1"));
+    assertTrue(actualUri.contains("cacheUse=true"));
     
-    // Дополнительная проверка, что не возвращается removedPackageId
-    assertFalse(response.getMessage().getBody(String.class).contains("removedPackageId"));
+    // Проверка ответа
+    assertEquals(expectedResponse, response);
 }
