@@ -1,50 +1,44 @@
 @Test
-public void testOnlineObjectsRoute_SuccessWithParameters() throws Exception {
+public void testRestartRoute_Success() throws Exception {
     // Подготовка AdviceWith
-    AdviceWith.adviceWith(camelContext, "direct:onlineObjectsRoute", a -> {
-        a.weaveByToUri("https:*").replace().to("mock:https:external-service/objects");
+    AdviceWith.adviceWith(camelContext, "direct:restartRoute", a -> {
+        a.weaveByToUri("https:*").replace().to("mock:https:external-service/restart");
     });
     
     camelContext.start();
     
-    MockEndpoint mockObjects = camelContext.getEndpoint(
-        "mock:https:external-service/objects", MockEndpoint.class);
+    MockEndpoint mockRestart = camelContext.getEndpoint(
+        "mock:https:external-service/restart", MockEndpoint.class);
     
     // Настройка ожиданий
-    mockObjects.expectedMessageCount(1);
-    mockObjects.expectedHeaderReceived("Authorization", "mocked-token");
-    mockObjects.expectedHeaderReceived(Exchange.HTTP_METHOD, "GET");
+    mockRestart.expectedMessageCount(1);
+    mockRestart.expectedHeaderReceived("Authorization", "mocked-token");
+    mockRestart.expectedHeaderReceived(Exchange.HTTP_METHOD, "POST");
     
     // Мокирование успешного ответа
-    String expectedResponse = "[{\"id\":1,\"name\":\"Object 1\"}, {\"id\":2,\"name\":\"Object 2\"}]";
-    mockObjects.whenAnyExchangeReceived(exchange -> {
+    String expectedResponse = "{\"status\":\"SUCCESS\",\"message\":\"Process restarted\"}";
+    mockRestart.whenAnyExchangeReceived(exchange -> {
         exchange.getMessage().setBody(expectedResponse);
         exchange.getMessage().setHeader(Exchange.HTTP_RESPONSE_CODE, 200);
     });
 
     // Параметры запроса
     Map<String, Object> headers = new HashMap<>();
-    headers.put("region", "Moscow");
-    headers.put("street", "Tverskaya");
-    headers.put("house", "1");
-    headers.put("cacheUse", "true");
+    headers.put("id", "process-123");
     
     // Выполнение запроса
     Object response = producerTemplate.requestBodyAndHeaders(
-        "direct:onlineObjectsRoute", 
-        null, // GET запрос без тела
+        "direct:restartRoute", 
+        null, // POST запрос без тела
         headers
     );
 
     // Проверки
-    mockObjects.assertIsSatisfied();
+    mockRestart.assertIsSatisfied();
     
-    // Проверка URL: должен содержать ожидаемые параметры
-    String actualUri = mockObjects.getExchanges().get(0).getMessage().getHeader(Exchange.HTTP_URI, String.class);
-    assertTrue(actualUri.contains("region=Moscow"));
-    assertTrue(actualUri.contains("street=Tverskaya"));
-    assertTrue(actualUri.contains("house=1"));
-    assertTrue(actualUri.contains("cacheUse=true"));
+    // Проверка URL: должен содержать идентификатор процесса
+    String actualUri = mockRestart.getExchanges().get(0).getMessage().getHeader(Exchange.HTTP_URI, String.class);
+    assertTrue(actualUri.contains("/restart/process-123"), "URL должен содержать идентификатор процесса");
     
     // Проверка ответа
     assertEquals(expectedResponse, response);
