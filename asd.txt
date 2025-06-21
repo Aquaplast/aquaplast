@@ -1,5 +1,195 @@
-java.lang.IllegalArgumentException: There are no outputs which matches: https:* in the route: Route(direct:createApplicationRoute)[From[direct:createApplicationRoute] -> [OnException[[java.net.SocketException] -> []], OnException[[java.net.SocketTimeoutException] -> []], To[direct:getMethodStartTime], To[log:ru.seventech.esb.technoprom.createApplication.v2.start?showAll=true], Log[[ZERO-SIGN-LOG] Get 'createApplication' request with body ${body}], SetProperty[rosrgatewayToken, bean[ref:authService method:getToken]], DoTry[[To[direct:ru.seventech.esb.technoprom.prepareRequest.v2], Unmarshal[org.apache.camel.model.dataformat.JsonDataFormat@10dfa7ef], SetProperty[packageId, simple{${body.get("packageId")}}], SetProperty[createApplicationUrl, simple{{{url_createApplication_v2}}}], To[direct:performCreateApplicationRequest], Unmarshal[org.apache.camel.model.dataformat.JsonDataFormat@7f8c3646], SetProperty[createApplicationResponse, groovy{
-						import ru.seventech.esb.technoprom.api.CreateApplicationResponse
-						def response = new CreateApplicationResponse()
-						response.setPackageId(Long.valueOf(exchange.properties.packageId))
-						response.setDocuments(exchange.in.body)
+@Test
+public void testAddApplicationRoute_Success() throws Exception {
+    // Модифицируем все дочерние маршруты, где происходят HTTPS-вызовы
+    modifyChildRoutes();
+    
+    camelContext.start();
+    
+    // Создаем моки для всех внешних вызовов
+    MockEndpoint mockAttachSignature = camelContext.getEndpoint("mock:https:external-service/attachSignature", MockEndpoint.class);
+    MockEndpoint mockGetPackage = camelContext.getEndpoint("mock:https:external-service/getPackage", MockEndpoint.class);
+    MockEndpoint mockCreateZip = camelContext.getEndpoint("mock:https:external-service/createZip", MockEndpoint.class);
+    MockEndpoint mockSendZip = camelContext.getEndpoint("mock:https:external-service/sendZip", MockEndpoint.class);
+    
+    // Настройка моков
+    configureMocks(mockAttachSignature, mockGetPackage, mockCreateZip, mockSendZip);
+    
+    // Тело запроса с одним документом и одной подписью
+    String requestBody = "{\"packageId\":\"123\", \"documents\":[{\"documentId\":\"doc1\", \"sigFileUID\":\"sig1\"}]}";
+    
+    // Выполняем запрос
+    String response = producerTemplate.requestBody(
+        "direct:addApplicationRoute", 
+        requestBody,
+        String.class
+    );
+
+    // Проверки
+    mockAttachSignature.assertIsSatisfied();
+    mockGetPackage.assertIsSatisfied();
+    mockCreateZip.assertIsSatisfied();
+    mockSendZip.assertIsSatisfied();
+    
+    // Проверяем структуру ответа
+    assertTrue(response.contains("\"packageId\":\"123\""));
+    assertTrue(response.contains("\"packageInfo\":\"details\""));
+    assertTrue(response.contains("\"status\":\"SENT\""));
+}
+
+@Test
+public void testAddApplicationRoute_MultipleSignatures() throws Exception {
+    modifyChildRoutes();
+    camelContext.start();
+    
+    MockEndpoint mockAttachSignature = camelContext.getEndpoint("mock:https:external-service/attachSignature", MockEndpoint.class);
+    // Остальные моки...
+    
+    // Настройка моков
+    mockAttachSignature.whenAnyExchangeReceived(exchange -> {
+        exchange.getMessage().setBody("{}");
+    });
+    
+    // Тело запроса с несколькими подписями
+    String requestBody = "{\"packageId\":\"123\", \"documents\":[{\"documentId\":\"doc1\", \"sigFileUID\":[\"sig1\", \"sig2\"]}]}";
+    
+    String response = producerTemplate.requestBody(
+        "direct:addApplicationRoute", 
+        requestBody,
+        String.class
+    );
+
+    // Проверяем, что было 2 вызова для прикрепления подписей
+    assertEquals(2, mockAttachSignature.getReceivedCounter());
+}
+
+@Test
+public void testAddApplicationRoute_NoDocuments() throws Exception {
+    modifyChildRoutes();
+    camelContext.start();
+    
+    MockEndpoint mockAttachSignature = camelContext.getEndpoint("mock:https:external-service/attachSignature", MockEndpoint.class);
+    // Остальные моки...
+    
+    // Настройка моков
+    mockAttachSignature.expectedMessageCount(0); // Не должно быть вызовов
+    
+    // Тело запроса без документов
+    String requestBody = "{\"packageId\":\"123\", \"documents\":[]}";
+    
+    String response = producerTemplate.requestBody(
+        "direct:addApplicationRoute", 
+        requestBody,
+        String.class
+    );
+
+    // Проверки
+    mockAttachSignature.assertIsSatisfied();
+    assertTrue(response.contains("\"packageId\":\"123\""));
+}
+
+@Test
+public void testAddApplicationRoute_ErrorInAttachSignature() throws Exception {
+    modifyChildRoutes();
+    camelContext.start();
+    
+    MockEndpoint mockAttachSignature = camelContext.getEndpoint("mock:https:external-service/attachSignature", MockEndpoint.class);
+    
+    // Эмуляция ошибки при прикреплении подписи
+    mockAttachSignature.whenAnyExchangeReceived(exchange -> {
+        throw new HttpOperationFailedException(
+            "https://external-service/attachSignature", 
+            500, 
+            "Internal Error", 
+            "location", 
+            "Server error".getBytes(), 
+            null
+        );
+    });
+
+    String requestBody = "{\"packageId\":\"123\", \"documents\":[{\"documentId\":\"doc1\", \"sigFileUID\":\"sig1\"}]}";
+    
+    Exchange response = producerTemplate.request(
+        "direct:addApplicationRoute", 
+        exchange -> exchange.getIn().setBody(requestBody)
+    );
+
+    // Проверки
+    mockAttachSignature.assertIsSatisfied();
+    assertEquals(400, response.getMessage().getHeader(Exchange.HTTP_RESPONSE_CODE));
+    assertTrue(response.getMessage().getBody(String.class).contains("Server error"));
+}
+
+@Test
+public void testAddApplicationRoute_Timeout() throws Exception {
+    modifyChildRoutes();
+    camelContext.start();
+    
+    MockEndpoint mockAttachSignature = camelContext.getEndpoint("mock:https:external-service/attachSignature", MockEndpoint.class);
+    
+    // Эмуляция таймаута
+    mockAttachSignature.whenAnyExchangeReceived(exchange -> {
+        throw new SocketTimeoutException("Connection timed out");
+    });
+
+    String requestBody = "{\"packageId\":\"123\", \"documents\":[{\"documentId\":\"doc1\", \"sigFileUID\":\"sig1\"}]}";
+    
+    Exchange response = producerTemplate.request(
+        "direct:addApplicationRoute", 
+        exchange -> exchange.getIn().setBody(requestBody)
+    );
+
+    // Проверки
+    mockAttachSignature.assertIsSatisfied();
+    assertEquals(500, response.getMessage().getHeader(Exchange.HTTP_RESPONSE_CODE));
+    assertTrue(response.getMessage().getBody(String.class).contains("SocketTimeoutException"));
+}
+
+// Вспомогательные методы
+
+private void modifyChildRoutes() throws Exception {
+    // Модифицируем маршрут commonDocumentProcessing
+    AdviceWith.adviceWith(camelContext, "direct:commonDocumentProcessing", a -> {
+        a.weaveByToUri("https:*/attachSignature*").replace().to("mock:https:external-service/attachSignature");
+        a.weaveByToUri("https:*/getPackage*").replace().to("mock:https:external-service/getPackage");
+        a.weaveByToUri("https:*/createZip*").replace().to("mock:https:external-service/createZip");
+        a.weaveByToUri("https:*/sendZip*").replace().to("mock:https:external-service/sendZip");
+    });
+    
+    // Модифицируем prepareRequest (если нужно)
+    AdviceWith.adviceWith(camelContext, "direct:ru.seventech.esb.technoprom.prepareRequest.v2", a -> {
+        // При необходимости добавить модификации
+    });
+}
+
+private void configureMocks(
+    MockEndpoint attachSignatureMock, 
+    MockEndpoint getPackageMock,
+    MockEndpoint createZipMock,
+    MockEndpoint sendZipMock
+) {
+    // Настройка мока для прикрепления подписи
+    attachSignatureMock.whenAnyExchangeReceived(exchange -> {
+        exchange.getMessage().setBody("{}");
+    });
+    
+    // Настройка мока для получения информации о пакете
+    getPackageMock.whenAnyExchangeReceived(exchange -> {
+        exchange.getMessage().setBody("{\"packageInfo\":\"details\"}");
+    });
+    
+    // Настройка мока для создания архива
+    createZipMock.whenAnyExchangeReceived(exchange -> {
+        exchange.getMessage().setBody("{}");
+    });
+    
+    // Настройка мока для отправки архива
+    sendZipMock.whenAnyExchangeReceived(exchange -> {
+        exchange.getMessage().setBody("{\"status\":\"SENT\"}");
+    });
+    
+    // Устанавливаем ожидаемое количество вызовов
+    attachSignatureMock.expectedMessageCount(1);
+    getPackageMock.expectedMessageCount(1);
+    createZipMock.expectedMessageCount(1);
+    sendZipMock.expectedMessageCount(1);
+}
