@@ -1,7 +1,173 @@
-Caused by: groovy.lang.MissingPropertyException: No such property: outerLoopIndex for class: Script_cd0918de2487ee876bc90f13356e7881
-	at org.codehaus.groovy.runtime.ScriptBytecodeAdapter.unwrap(ScriptBytecodeAdapter.java:65)
-	at org.codehaus.groovy.runtime.callsite.PogoGetPropertySite.getProperty(PogoGetPropertySite.java:51)
-	at org.codehaus.groovy.runtime.callsite.AbstractCallSite.callGroovyObjectGetProperty(AbstractCallSite.java:341)
-	at Script_cd0918de2487ee876bc90f13356e7881.run(Script_cd0918de2487ee876bc90f13356e7881.groovy:1)
-	at org.apache.camel.language.groovy.GroovyExpression.evaluate(GroovyExpression.java:53)
-	at org.apache.camel.support.ExpressionSupport.matches(ExpressionSupport.java:36)
+@Test
+public void testAddApplicationAPIXRoute_Success() throws Exception {
+    // Модифицируем все дочерние маршруты
+    modifyChildRoutes();
+    
+    camelContext.start();
+    
+    // Создаем моки
+    MockEndpoint mockCreateApp = camelContext.getEndpoint("mock:https:external-service/createApplicationAPIX", MockEndpoint.class);
+    MockEndpoint mockAttachSignature = camelContext.getEndpoint("mock:https:external-service/attachSignature", MockEndpoint.class);
+    MockEndpoint mockGetPackage = camelContext.getEndpoint("mock:https:external-service/getPackage", MockEndpoint.class);
+    MockEndpoint mockCreateZip = camelContext.getEndpoint("mock:https:external-service/createZip", MockEndpoint.class);
+    MockEndpoint mockSendZip = camelContext.getEndpoint("mock:https:external-service/sendZip", MockEndpoint.class);
+    
+    // Настройка моков
+    mockCreateApp.whenAnyExchangeReceived(exchange -> exchange.getMessage().setBody("{}"));
+    mockAttachSignature.whenAnyExchangeReceived(exchange -> exchange.getMessage().setBody("{}"));
+    mockGetPackage.whenAnyExchangeReceived(exchange -> exchange.getMessage().setBody("{\"packageInfo\":\"details\"}"));
+    mockCreateZip.whenAnyExchangeReceived(exchange -> exchange.getMessage().setBody("{}"));
+    mockSendZip.whenAnyExchangeReceived(exchange -> exchange.getMessage().setBody("{\"status\":\"SENT\"}"));
+    
+    // Тело запроса
+    String requestBody = "{\"packageId\":\"123\", \"documents\":[{\"documentId\":\"doc1\", \"sigFileUID\":\"sig1\"}]}";
+    
+    // Выполняем запрос
+    String response = producerTemplate.requestBody(
+        "direct:addApplicationAPIXRoute", 
+        requestBody,
+        String.class
+    );
+
+    // Проверки
+    mockCreateApp.assertIsSatisfied();
+    mockAttachSignature.assertIsSatisfied();
+    mockGetPackage.assertIsSatisfied();
+    mockCreateZip.assertIsSatisfied();
+    mockSendZip.assertIsSatisfied();
+    
+    // Проверяем URL для APIX
+    String actualUri = mockCreateApp.getExchanges().get(0).getMessage().getHeader(Exchange.HTTP_URI, String.class);
+    assertTrue(actualUri.contains("/apix/"), "URL должен содержать путь для APIX");
+    
+    // Проверяем структуру ответа
+    assertTrue(response.contains("\"packageId\":\"123\""));
+    assertTrue(response.contains("\"packageInfo\":\"details\""));
+    assertTrue(response.contains("\"status\":\"SENT\""));
+}
+
+@Test
+public void testAddApplicationAPIXRoute_ErrorInCreateApplication() throws Exception {
+    modifyChildRoutes();
+    camelContext.start();
+    
+    MockEndpoint mockCreateApp = camelContext.getEndpoint("mock:https:external-service/createApplicationAPIX", MockEndpoint.class);
+    
+    // Эмуляция ошибки при создании заявки APIX
+    mockCreateApp.whenAnyExchangeReceived(exchange -> {
+        throw new HttpOperationFailedException(
+            "https://external-service/apix/createApplication/123", 
+            400, 
+            "Bad Request", 
+            "https://external-service", 
+            "{\"error\":\"Invalid APIX request\"}".getBytes(), 
+            null
+        );
+    });
+
+    String requestBody = "{\"packageId\":\"123\", \"documents\":[{\"documentId\":\"doc1\", \"sigFileUID\":\"sig1\"}]}";
+    
+    Exchange response = producerTemplate.request(
+        "direct:addApplicationAPIXRoute", 
+        exchange -> exchange.getIn().setBody(requestBody)
+    );
+
+    // Проверки
+    mockCreateApp.assertIsSatisfied();
+    assertEquals(400, response.getMessage().getHeader(Exchange.HTTP_RESPONSE_CODE));
+    assertTrue(response.getMessage().getBody(String.class).contains("Invalid APIX request"));
+}
+
+@Test
+public void testAddApplicationAPIXRoute_WithSpecialCharacters() throws Exception {
+    modifyChildRoutes();
+    camelContext.start();
+    
+    MockEndpoint mockCreateApp = camelContext.getEndpoint("mock:https:external-service/createApplicationAPIX", MockEndpoint.class);
+    mockCreateApp.whenAnyExchangeReceived(exchange -> exchange.getMessage().setBody("{}"));
+    
+    // Тело запроса со спецсимволами
+    String requestBody = "{\"packageId\":\"123#456\", \"documents\":[{\"documentId\":\"doc@1\", \"sigFileUID\":\"sig$1\"}]}";
+    
+    producerTemplate.requestBody(
+        "direct:addApplicationAPIXRoute", 
+        requestBody
+    );
+
+    // Проверяем корректность передачи спецсимволов
+    String requestBodySent = mockCreateApp.getExchanges().get(0).getMessage().getBody(String.class);
+    assertTrue(requestBodySent.contains("123#456"));
+    assertTrue(requestBodySent.contains("doc@1"));
+}
+
+@Test
+public void testAddApplicationAPIXRoute_TimeoutInCommonProcessing() throws Exception {
+    modifyChildRoutes();
+    camelContext.start();
+    
+    MockEndpoint mockAttachSignature = camelContext.getEndpoint("mock:https:external-service/attachSignature", MockEndpoint.class);
+    
+    // Эмуляция таймаута при прикреплении подписи
+    mockAttachSignature.whenAnyExchangeReceived(exchange -> {
+        throw new SocketTimeoutException("Connection timed out");
+    });
+
+    String requestBody = "{\"packageId\":\"123\", \"documents\":[{\"documentId\":\"doc1\", \"sigFileUID\":\"sig1\"}]}";
+    
+    Exchange response = producerTemplate.request(
+        "direct:addApplicationAPIXRoute", 
+        exchange -> exchange.getIn().setBody(requestBody)
+    );
+
+    // Проверки
+    mockAttachSignature.assertIsSatisfied();
+    assertEquals(500, response.getMessage().getHeader(Exchange.HTTP_RESPONSE_CODE));
+    assertTrue(response.getMessage().getBody(String.class).contains("SocketTimeoutException"));
+}
+
+@Test
+public void testAddApplicationAPIXRoute_EmptyDocuments() throws Exception {
+    modifyChildRoutes();
+    camelContext.start();
+    
+    MockEndpoint mockCreateApp = camelContext.getEndpoint("mock:https:external-service/createApplicationAPIX", MockEndpoint.class);
+    mockCreateApp.whenAnyExchangeReceived(exchange -> exchange.getMessage().setBody("{}"));
+    
+    MockEndpoint mockAttachSignature = camelContext.getEndpoint("mock:https:external-service/attachSignature", MockEndpoint.class);
+    mockAttachSignature.expectedMessageCount(0);
+    
+    // Тело запроса без документов
+    String requestBody = "{\"packageId\":\"123\", \"documents\":[]}";
+    
+    String response = producerTemplate.requestBody(
+        "direct:addApplicationAPIXRoute", 
+        requestBody,
+        String.class
+    );
+
+    // Проверки
+    mockCreateApp.assertIsSatisfied();
+    mockAttachSignature.assertIsSatisfied();
+    assertTrue(response.contains("\"packageId\":\"123\""));
+}
+
+// Вспомогательный метод для модификации дочерних маршрутов
+private void modifyChildRoutes() throws Exception {
+    // Модифицируем performCreateApplicationRequest для APIX
+    AdviceWith.adviceWith(camelContext, "direct:performCreateApplicationRequest", a -> {
+        a.weaveByToUri("https:*apix*").replace().to("mock:https:external-service/createApplicationAPIX");
+    });
+    
+    // Модифицируем commonDocumentProcessing
+    AdviceWith.adviceWith(camelContext, "direct:commonDocumentProcessing", a -> {
+        a.weaveByToUri("https:*/attachSignature*").replace().to("mock:https:external-service/attachSignature");
+        a.weaveByToUri("https:*/getPackage*").replace().to("mock:https:external-service/getPackage");
+        a.weaveByToUri("https:*/createZip*").replace().to("mock:https:external-service/createZip");
+        a.weaveByToUri("https:*/sendZip*").replace().to("mock:https:external-service/sendZip");
+    });
+    
+    // Модифицируем prepareRequest
+    AdviceWith.adviceWith(camelContext, "direct:ru.seventech.esb.technoprom.prepareRequest.v2", a -> {
+        // При необходимости добавить модификации
+    });
+}
