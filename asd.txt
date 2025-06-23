@@ -1,1 +1,9 @@
-ttp://localhost:8080/actuator/metrics/http.server.requests
+management:
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+
+
+
+/actuator/prometheus
