@@ -1,1 +1,17 @@
 irate(http_server_requests_seconds_sum[5m]) / irate(http_server_requests_seconds_count[5m])
+
+
+http_server_requests_seconds_count{application="gate-rr-adapter-preprod",error="none",exception="None",method="GET",outcome="REDIRECTION",status="302",uri="/private/v2/gate_rr_adapter/docs",} 1.0
+http_server_requests_seconds_sum{application="gate-rr-adapter-preprod",error="none",exception="None",method="GET",outcome="REDIRECTION",status="302",uri="/private/v2/gate_rr_adapter/docs",} 0.0325752
+http_server_requests_seconds_count{application="gate-rr-adapter-preprod",error="none",exception="None",method="GET",outcome="SUCCESS",status="200",uri="/webjars/swagger-ui/3.52.5/swagger-ui-standalone-preset.js",} 1.0
+http_server_requests_seconds_sum{application="gate-rr-adapter-preprod",error="none",exception="None",method="GET",outcome="SUCCESS",status="200",uri="/webjars/swagger-ui/3.52.5/swagger-ui-standalone-preset.js",} 0.0201522
+http_server_requests_seconds_count{application="gate-rr-adapter-preprod",error="none",exception="None",method="GET",outcome="SUCCESS",status="200",uri="/actuator/prometheus",} 1.0
+http_server_requests_seconds_sum{application="gate-rr-adapter-preprod",error="none",exception="None",method="GET",outcome="SUCCESS",status="200",uri="/actuator/prometheus",} 0.6114654
+http_server_requests_seconds_count{application="gate-rr-adapter-preprod",error="none",exception="None",method="GET",outcome="SUCCESS",status="200",uri="/webjars/swagger-ui/3.52.5/index.html",} 1.0
+http_server_requests_seconds_sum{application="gate-rr-adapter-preprod",error="none",exception="None",method="GET",outcome="SUCCESS",status="200",uri="/webjars/swagger-ui/3.52.5/index.html",} 0.0155849
+http_server_requests_seconds_count{application="gate-rr-adapter-preprod",error="none",exception="None",method="GET",outcome="SUCCESS",status="200",uri="/webjars/swagger-ui/3.52.5/swagger-ui-bundle.js",} 1.0
+http_server_requests_seconds_sum{application="gate-rr-adapter-preprod",error="none",exception="None",method="GET",outcome="SUCCESS",status="200",uri="/webjars/swagger-ui/3.52.5/swagger-ui-bundle.js",} 0.036593
+http_server_requests_seconds_count{application="gate-rr-adapter-preprod",error="none",exception="None",method="GET",outcome="SUCCESS",status="200",uri="/private/api-docs",} 1.0
+http_server_requests_seconds_sum{application="gate-rr-adapter-preprod",error="none",exception="None",method="GET",outcome="SUCCESS",status="200",uri="/private/api-docs",} 0.149956
+http_server_requests_seconds_count{application="gate-rr-adapter-preprod",error="none",exception="None",method="GET",outcome="SUCCESS",status="200",uri="/webjars/swagger-ui/3.52.5/swagger-ui.css",} 1.0
+http_server_requests_seconds_sum{application="gate-rr-adapter-preprod",error="none",exception="None",method="GET",outcome="SUCCESS",status="200",uri="/webjars/swagger-ui/3.52.5/swagger-ui.css",} 0.0137889
